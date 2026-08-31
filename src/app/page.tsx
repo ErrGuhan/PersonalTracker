@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence, PanInfo, type Variants } from "framer-motion";
-import ConnectionStatus from "@/components/ConnectionStatus";
+import Header from "@/components/Header";
 import LogWorkoutModal from "@/components/LogWorkoutModal";
 import LogStudyModal from "@/components/LogStudyModal";
 import LogSleepModal from "@/components/LogSleepModal";
@@ -1009,51 +1009,13 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Top Header */}
-      <header className="fixed top-0 left-0 w-full lg:w-[calc(100%-18rem)] lg:left-72 z-50 flex justify-between items-center px-4 sm:px-8 h-16 bg-surface/75 backdrop-blur-xl border-b border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
-        <div className="flex items-center gap-3">
-          <div className="lg:hidden w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
-            ⚡
-          </div>
-          <span className="lg:hidden font-bold text-sm text-primary tracking-tight">LifeSync OS</span>
-
-          <button
-            onClick={() => setShowCommandPalette(true)}
-            className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-surface-container/70 border border-white/10 text-on-surface-variant hover:text-white hover:border-primary/40 transition text-xs font-medium cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-base text-primary">search</span>
-            <span>Search & Commands</span>
-            <span className="font-mono text-[10px] bg-white/10 px-1.5 py-0.5 rounded border border-white/10 ml-2">⌘K</span>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {!isAuthenticated ? (
-            <button
-              onClick={() => setShowAuthModal(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-primary/15 border border-primary/40 text-primary text-xs font-bold hover:bg-primary/25 transition cursor-pointer"
-            >
-              Sign In
-            </button>
-          ) : (
-            <button
-              onClick={() => signOut()}
-              className="px-3.5 py-1.5 rounded-xl bg-surface-container-high border border-white/10 text-on-surface-variant hover:text-error text-xs font-mono transition cursor-pointer"
-            >
-              Sign Out
-            </button>
-          )}
-
-          <button
-            onClick={() => setShowCommandPalette(true)}
-            className="sm:hidden p-2 rounded-xl bg-surface-container/60 border border-white/10 text-on-surface-variant"
-          >
-            <span className="material-symbols-outlined text-lg">search</span>
-          </button>
-
-          <ConnectionStatus />
-        </div>
-      </header>
+      {/* Top Glassmorphic Header */}
+      <Header
+        onOpenAuthModal={() => setShowAuthModal(true)}
+        onOpenCommandPalette={() => setShowCommandPalette(true)}
+        onExportData={handleExportData}
+        onResetData={handleResetData}
+      />
 
       {/* Main Content Area — Safe Mobile Padding (pb-36 lg:pb-12) */}
       <main className="pt-20 sm:pt-24 px-4 sm:px-8 pb-36 lg:pb-12 max-w-[1440px] lg:ml-72 w-full overflow-x-hidden">
