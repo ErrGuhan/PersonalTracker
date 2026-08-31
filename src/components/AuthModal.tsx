@@ -33,9 +33,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         await signIn(email, password);
         onSuccess("⚡ Welcome back! Authenticated with Supabase.");
       }
-      onClose();
-    } catch (err: any) {
-      setErrorMsg(err?.message || "Authentication failed. Please check credentials.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Authentication failed. Please check credentials.";
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }

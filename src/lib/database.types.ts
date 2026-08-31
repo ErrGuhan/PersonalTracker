@@ -117,3 +117,32 @@ export type StudySession   = Database["public"]["Tables"]["study_sessions"]["Row
 export type MoodLog        = Database["public"]["Tables"]["mood_logs"]["Row"];
 export type SleepLog       = Database["public"]["Tables"]["sleep_logs"]["Row"];
 export type Goal           = Database["public"]["Tables"]["goals"]["Row"];
+
+export interface Habit {
+  id: string;
+  title: string;
+  category: "health" | "fitness" | "focus" | "mindset";
+  streak: number;
+  completedToday: boolean;
+  frequency: string;
+  targetCount: number;
+  icon: string;
+}
+
+export interface HydrationLog {
+  amountMl: number;
+  targetMl: number;
+  lastUpdated: string;
+}
+
+export interface MealLog {
+  id: string;
+  name: string;
+  mealType: "breakfast" | "lunch" | "dinner" | "snack";
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatsG: number;
+  loggedAt: string;
+}
+

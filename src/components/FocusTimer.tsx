@@ -14,14 +14,21 @@ export default function FocusTimer({ initialMinutes = 25, onSessionComplete }: F
 
   useEffect(() => {
     if (!running) return;
-    if (remaining <= 0) {
-      setRunning(false);
-      onSessionComplete?.();
-      return;
-    }
-    const id = setInterval(() => setRemaining((r) => r - 1), 1000);
+
+    const id = setInterval(() => {
+      setRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(id);
+          setRunning(false);
+          onSessionComplete?.();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
     return () => clearInterval(id);
-  }, [running, remaining, onSessionComplete]);
+  }, [running, onSessionComplete]);
 
   const progress = 1 - remaining / total;
   const mins = Math.floor(remaining / 60).toString().padStart(2, "0");
@@ -68,10 +75,16 @@ export default function FocusTimer({ initialMinutes = 25, onSessionComplete }: F
         </div>
       </div>
       <div className="flex gap-3">
-        <button className="btn-secondary text-sm px-6 py-2" onClick={() => { setRemaining(total); setRunning(false); }}>
+        <button
+          className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-on-surface-variant hover:text-on-surface text-xs font-semibold transition cursor-pointer"
+          onClick={() => { setRemaining(total); setRunning(false); }}
+        >
           Reset
         </button>
-        <button className="btn-primary text-sm px-8 py-2" onClick={() => setRunning((r) => !r)}>
+        <button
+          className="px-6 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-[0_0_15px_rgba(76,215,246,0.4)] hover:bg-primary/90 transition cursor-pointer"
+          onClick={() => setRunning((r) => !r)}
+        >
           {running ? "Pause" : "Start"}
         </button>
       </div>

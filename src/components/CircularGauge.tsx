@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useId } from "react";
 
 interface CircularGaugeProps {
   value: number;       // 0–100
@@ -43,8 +43,9 @@ export default function CircularGauge({
 }: CircularGaugeProps) {
   const [displayValue, setDisplayValue] = useState(animateOnMount ? 0 : value);
   const [progress, setProgress] = useState(animateOnMount ? 0 : value);
-  const gradId = useRef(`grad-${Math.random().toString(36).slice(2)}`);
-  const filterId = useRef(`glow-${Math.random().toString(36).slice(2)}`);
+  const rawId = useId();
+  const gradId = `grad-${rawId.replace(/:/g, "")}`;
+  const filterId = `glow-${rawId.replace(/:/g, "")}`;
 
   const c = colorMap[color];
   const r = (size - strokeWidth) / 2;
@@ -71,11 +72,11 @@ export default function CircularGauge({
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="rotate-[-90deg]">
           <defs>
-            <linearGradient id={gradId.current} x1="0%" y1="0%" x2="100%" y2="0%">
+            <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor={c.gradient[0]} />
               <stop offset="100%" stopColor={c.gradient[1]} />
             </linearGradient>
-            <filter id={filterId.current} x="-50%" y="-50%" width="200%" height="200%">
+            <filter id={filterId} x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="3" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
@@ -94,12 +95,12 @@ export default function CircularGauge({
           <circle
             cx={center} cy={center} r={r}
             fill="none"
-            stroke={`url(#${gradId.current})`}
+            stroke={`url(#${gradId})`}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
-            style={{ transition: "stroke-dashoffset 0.05s linear", filter: `url(#${filterId.current})` }}
+            style={{ transition: "stroke-dashoffset 0.05s linear", filter: `url(#${filterId})` }}
           />
         </svg>
         {/* Center label */}

@@ -9,6 +9,12 @@ interface CommandPaletteProps {
   onSelectNav: (tab: string) => void;
   onOpenWorkoutModal: () => void;
   onOpenStudyModal: () => void;
+  onOpenSleepModal: () => void;
+  onOpenVitalsModal: () => void;
+  onOpenNutritionModal: () => void;
+  onOpenGoalModal: () => void;
+  onExportData: () => void;
+  onResetData: () => void;
   onShowToast: (msg: string) => void;
 }
 
@@ -18,6 +24,12 @@ export default function CommandPalette({
   onSelectNav,
   onOpenWorkoutModal,
   onOpenStudyModal,
+  onOpenSleepModal,
+  onOpenVitalsModal,
+  onOpenNutritionModal,
+  onOpenGoalModal,
+  onExportData,
+  onResetData,
   onShowToast,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
@@ -44,11 +56,20 @@ export default function CommandPalette({
     { id: "study", label: "Open Study Studio", category: "NAVIGATION", icon: "menu_book", action: () => { onSelectNav("study"); onClose(); } },
     { id: "fitness", label: "Open Fitness Hub", category: "NAVIGATION", icon: "fitness_center", action: () => { onSelectNav("fitness"); onClose(); } },
     { id: "health", label: "Open Health Analytics", category: "NAVIGATION", icon: "ecg_heart", action: () => { onSelectNav("health"); onClose(); } },
+    { id: "routines", label: "Open Routines & Habits", category: "NAVIGATION", icon: "published_with_changes", action: () => { onSelectNav("routines"); onClose(); } },
+    { id: "nutrition", label: "Open Hydration & Nutrition", category: "NAVIGATION", icon: "restaurant", action: () => { onSelectNav("nutrition"); onClose(); } },
     { id: "goals", label: "View Milestones & Goals", category: "NAVIGATION", icon: "insights", action: () => { onSelectNav("goals"); onClose(); } },
-    { id: "log-workout", label: "Log New Workout Activity", category: "ACTIONS", icon: "add_task", action: () => { onClose(); onOpenWorkoutModal(); } },
-    { id: "log-study", label: "Log New Study Session", category: "ACTIONS", icon: "local_library", action: () => { onClose(); onOpenStudyModal(); } },
-    { id: "log-water", label: "Log 500ml Hydration Boost", category: "ACTIONS", icon: "water_drop", action: () => { onClose(); onShowToast("💧 Hydration logged: +500ml water!"); } },
-    { id: "check-in", label: "Quick Mood & Wellness Check-In", category: "ACTIONS", icon: "mood", action: () => { onSelectNav("health"); onClose(); } },
+
+    { id: "log-workout", label: "Log Workout Activity", category: "LOGGING", icon: "add_task", action: () => { onClose(); onOpenWorkoutModal(); } },
+    { id: "log-study", label: "Log Study Session", category: "LOGGING", icon: "local_library", action: () => { onClose(); onOpenStudyModal(); } },
+    { id: "log-sleep", label: "Log Sleep & Circadian Stage", category: "LOGGING", icon: "bedtime", action: () => { onClose(); onOpenSleepModal(); } },
+    { id: "log-vitals", label: "Log Health Vitals & HR/HRV", category: "LOGGING", icon: "monitor_heart", action: () => { onClose(); onOpenVitalsModal(); } },
+    { id: "log-meal", label: "Log Meal & Macros", category: "LOGGING", icon: "lunch_dining", action: () => { onClose(); onOpenNutritionModal(); } },
+    { id: "create-goal", label: "Create Milestone Goal", category: "LOGGING", icon: "flag", action: () => { onClose(); onOpenGoalModal(); } },
+
+    { id: "export-data", label: "Export Full Personal Data Backup (JSON)", category: "SYSTEM", icon: "download", action: () => { onClose(); onExportData(); } },
+    { id: "reset-data", label: "Reset Baseline Demo Dataset", category: "SYSTEM", icon: "restart_alt", action: () => { onClose(); onResetData(); } },
+    { id: "log-water", label: "Quick Hydration Boost (+500ml)", category: "ACTIONS", icon: "water_drop", action: () => { onClose(); onShowToast("💧 Hydration logged: +500ml water!"); } },
   ];
 
   const filtered = COMMANDS.filter(
@@ -79,7 +100,7 @@ export default function CommandPalette({
             <input
               autoFocus
               className="w-full bg-transparent text-on-surface text-sm placeholder-on-surface-variant outline-none font-medium"
-              placeholder="Type a command or search (e.g. Workout, Study, Goals)..."
+              placeholder="Type a command or search (e.g. Workout, Sleep, Meal, Goals)..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -97,7 +118,7 @@ export default function CommandPalette({
                 <button
                   key={cmd.id}
                   onClick={cmd.action}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-primary/10 hover:text-primary transition-all text-left group"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-primary/10 hover:text-primary transition-all text-left group cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary text-lg">

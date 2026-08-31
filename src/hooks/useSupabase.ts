@@ -1,8 +1,5 @@
 "use client";
-// ─── LifeSync OS — Supabase React Hooks ──────────────────
-// Custom hooks that fetch data, handle loading/error states,
-// and subscribe to realtime changes.
-
+// ─── LifeSync OS — Supabase & Local DB React Hooks ──────────────────
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -14,20 +11,30 @@ import {
   getLatestMood,
   logMood,
   getLatestSleep,
+  logSleep,
   getWeeklySleep,
   getGoals,
   updateGoalProgress,
+  createGoal,
   logWorkout,
   logStudySession,
+  getHabits,
+  toggleHabit as toggleHabitDb,
+  addHabit as addHabitDb,
+  getHydration,
+  addWater as addWaterDb,
+  getMeals,
+  logMeal as logMealDb,
+  upsertHealthMetrics,
   DEMO_USER_ID,
   type StudyStats,
 } from "@/lib/db";
-import type { HealthMetric, Workout, Goal, SleepLog, MoodLog } from "@/lib/database.types";
+import type { HealthMetric, Workout, Goal, SleepLog, Habit, HydrationLog, MealLog } from "@/lib/database.types";
 
 // ─────────────────────────────────────────────────────────
-// Generic async hook factory
+// Generic async hook factory with local broadcast listener
 // ─────────────────────────────────────────────────────────
-function useAsync<T>(fetcher: () => Promise<T>, deps: React.DependencyList = []) {
+function useAsync<T>(fetcher: () => Promise<T>) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,20 +50,32 @@ function useAsync<T>(fetcher: () => Promise<T>, deps: React.DependencyList = [])
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [fetcher]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+
+  useEffect(() => {
+    fetch();
+
+    const handleLocalUpdate = () => { fetch(); };
+    if (typeof window !== "undefined") {
+      window.addEventListener("lifesync-db-update", handleLocalUpdate);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("lifesync-db-update", handleLocalUpdate);
+      }
+    };
+  }, [fetch]);
+
   return { data, loading, error, refetch: fetch };
 }
 
 // ─────────────────────────────────────────────────────────
-// HEALTH METRICS
+// HEALTH METRICS & VITALS
 // ─────────────────────────────────────────────────────────
 export function useHealthMetrics() {
   const { data, loading, error, refetch } = useAsync(getLatestHealthMetrics);
 
-  // Realtime subscription for live metric updates
   useEffect(() => {
     const channel = supabase
       .channel("health-realtime")
@@ -78,26 +97,35 @@ export function useHealthMetrics() {
 }
 
 export function useHealthHistory(days = 7) {
-  return useAsync(() => getHealthMetricHistory(days), [days]);
+  const fetcher = useCallback(() => getHealthMetricHistory(days), [days]);
+  return useAsync(fetcher);
+}
+
+export function useLogVitals() {
+  const [saving, setSaving] = useState(false);
+  const save = useCallback(async (vitals: Partial<HealthMetric>) => {
+    setSaving(true);
+    const result = await upsertHealthMetrics(vitals);
+    setSaving(false);
+    return result;
+  }, []);
+  return { logVitals: save, saving };
 }
 
 // ─────────────────────────────────────────────────────────
 // WORKOUTS
 // ─────────────────────────────────────────────────────────
 export function useRecentWorkouts(limit = 5) {
-  const { data, loading, error, refetch } = useAsync(
-    () => getRecentWorkouts(limit),
-    [limit]
-  );
+  const fetcher = useCallback(() => getRecentWorkouts(limit), [limit]);
+  const { data, loading, error, refetch } = useAsync(fetcher);
 
-  // Realtime: refresh list on new workout insert
+
   useEffect(() => {
     const channel = supabase
       .channel("workouts-realtime")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "workouts",
-          filter: `user_id=eq.${DEMO_USER_ID}` },
+        { event: "INSERT", schema: "public", table: "workouts", filter: `user_id=eq.${DEMO_USER_ID}` },
         () => { refetch(); }
       )
       .subscribe();
@@ -105,13 +133,6 @@ export function useRecentWorkouts(limit = 5) {
   }, [refetch]);
 
   return { workouts: data ?? [], loading, error, refetch };
-}
-
-export interface WeeklyWorkoutStats {
-  totalCalories: number;
-  totalMinutes: number;
-  totalDistance: number;
-  dailyCalories: number[];
 }
 
 export function useWeeklyWorkoutStats() {
@@ -133,7 +154,7 @@ export function useLogWorkout() {
 }
 
 // ─────────────────────────────────────────────────────────
-// STUDY
+// STUDY STUDIO
 // ─────────────────────────────────────────────────────────
 export function useStudyStats() {
   return useAsync<StudyStats>(getStudyStats);
@@ -195,6 +216,17 @@ export function useWeeklySleep() {
   return useAsync(getWeeklySleep);
 }
 
+export function useLogSleep() {
+  const [saving, setSaving] = useState(false);
+  const save = useCallback(async (sleep: Omit<SleepLog, "id" | "user_id" | "created_at">) => {
+    setSaving(true);
+    const result = await logSleep(sleep);
+    setSaving(false);
+    return result;
+  }, []);
+  return { logSleep: save, saving };
+}
+
 // ─────────────────────────────────────────────────────────
 // GOALS
 // ─────────────────────────────────────────────────────────
@@ -212,14 +244,12 @@ export function useGoals() {
     [refetch]
   );
 
-  // Realtime: refresh goals on update
   useEffect(() => {
     const channel = supabase
       .channel("goals-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "goals",
-          filter: `user_id=eq.${DEMO_USER_ID}` },
+        { event: "*", schema: "public", table: "goals", filter: `user_id=eq.${DEMO_USER_ID}` },
         () => { refetch(); }
       )
       .subscribe();
@@ -228,3 +258,116 @@ export function useGoals() {
 
   return { goals: data ?? [], loading, error, refetch, updateProgress, updating };
 }
+
+export function useCreateGoal() {
+  const [saving, setSaving] = useState(false);
+  const save = useCallback(async (goal: Omit<Goal, "id" | "user_id" | "created_at" | "updated_at">) => {
+    setSaving(true);
+    const result = await createGoal(goal);
+    setSaving(false);
+    return result;
+  }, []);
+  return { createGoal: save, saving };
+}
+
+// ─────────────────────────────────────────────────────────
+// HABITS, HYDRATION & NUTRITION HOOKS
+// ─────────────────────────────────────────────────────────
+export function useHabits() {
+  const [habits, setHabits] = useState<Habit[]>(() => (typeof window !== "undefined" ? getHabits() : []));
+
+  const refresh = useCallback(() => {
+    setHabits(getHabits());
+  }, []);
+
+  useEffect(() => {
+    const handleUpdate = () => refresh();
+    if (typeof window !== "undefined") {
+      window.addEventListener("lifesync-db-update", handleUpdate);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("lifesync-db-update", handleUpdate);
+      }
+    };
+  }, [refresh]);
+
+  const toggle = (id: string) => {
+    const updated = toggleHabitDb(id);
+    setHabits(updated);
+  };
+
+  const add = (newHabit: Omit<Habit, "id" | "streak" | "completedToday">) => {
+    const updated = addHabitDb(newHabit);
+    setHabits(updated);
+  };
+
+  return { habits, toggleHabit: toggle, addHabit: add, refetch: refresh };
+}
+
+export function useHydration() {
+  const [hydration, setHydration] = useState<HydrationLog>(() =>
+    typeof window !== "undefined" ? getHydration() : { amountMl: 1750, targetMl: 2500, lastUpdated: "" }
+  );
+
+  const refresh = useCallback(() => {
+    setHydration(getHydration());
+  }, []);
+
+  useEffect(() => {
+    const handleUpdate = () => refresh();
+    if (typeof window !== "undefined") {
+      window.addEventListener("lifesync-db-update", handleUpdate);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("lifesync-db-update", handleUpdate);
+      }
+    };
+  }, [refresh]);
+
+  const addWater = (amountMl: number) => {
+    const updated = addWaterDb(amountMl);
+    setHydration(updated);
+  };
+
+  return { hydration, addWater, refetch: refresh };
+}
+
+export function useNutrition() {
+  const [meals, setMeals] = useState<MealLog[]>(() => (typeof window !== "undefined" ? getMeals() : []));
+
+  const refresh = useCallback(() => {
+    setMeals(getMeals());
+  }, []);
+
+  useEffect(() => {
+    const handleUpdate = () => refresh();
+    if (typeof window !== "undefined") {
+      window.addEventListener("lifesync-db-update", handleUpdate);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("lifesync-db-update", handleUpdate);
+      }
+    };
+  }, [refresh]);
+
+  const logMeal = (meal: Omit<MealLog, "id" | "loggedAt">) => {
+    const updated = logMealDb(meal);
+    setMeals(updated);
+  };
+
+  const totalCalories = meals.reduce((s, m) => s + m.calories, 0);
+  const totalProtein = meals.reduce((s, m) => s + m.proteinG, 0);
+  const totalCarbs = meals.reduce((s, m) => s + m.carbsG, 0);
+  const totalFats = meals.reduce((s, m) => s + m.fatsG, 0);
+
+  return {
+    meals,
+    logMeal,
+    refetch: refresh,
+    stats: { totalCalories, totalProtein, totalCarbs, totalFats },
+  };
+}
+

@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence, PanInfo, type Variants } from "framer-motion";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import LogWorkoutModal from "@/components/LogWorkoutModal";
 import LogStudyModal from "@/components/LogStudyModal";
+import LogSleepModal from "@/components/LogSleepModal";
+import LogVitalsModal from "@/components/LogVitalsModal";
+import LogNutritionModal from "@/components/LogNutritionModal";
+import CreateGoalModal from "@/components/CreateGoalModal";
+import HabitTrackerWidget from "@/components/HabitTrackerWidget";
+import HydrationWidget from "@/components/HydrationWidget";
 import CommandPalette from "@/components/CommandPalette";
 import ToastNotification from "@/components/ToastNotification";
 import AuthModal from "@/components/AuthModal";
@@ -21,62 +27,56 @@ import {
   useLatestMood,
   useLatestSleep,
   useGoals,
+  useNutrition,
 } from "@/hooks/useSupabase";
+import { exportAllDataJSON, resetBaselineData } from "@/lib/db";
 
-/* ─── Animated Framer Motion Glassmorphic Skeleton Card ───── */
-const SkeletonCard = () => {
-  return (
-    <div className="p-5 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-xl overflow-hidden relative h-[130px] sm:h-[140px] flex flex-col gap-4">
+/* ─── Animated Glassmorphic Skeleton Card ───── */
+const SkeletonCard = () => (
+  <div className="p-5 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-xl overflow-hidden relative h-[130px] sm:h-[140px] flex flex-col gap-4">
+    <motion.div
+      className="h-6 sm:h-7 w-3/4 bg-white/20 rounded-lg"
+      animate={{ opacity: [0.4, 0.8, 0.4] }}
+      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+    />
+    <div className="flex flex-col gap-2">
       <motion.div
-        className="h-6 sm:h-7 w-3/4 bg-white/20 rounded-lg"
+        className="h-3.5 sm:h-4 w-full bg-white/10 rounded-md"
         animate={{ opacity: [0.4, 0.8, 0.4] }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.1 }}
       />
-      <div className="flex flex-col gap-2">
-        <motion.div
-          className="h-3.5 sm:h-4 w-full bg-white/10 rounded-md"
-          animate={{ opacity: [0.4, 0.8, 0.4] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.1 }}
-        />
-        <motion.div
-          className="h-3.5 sm:h-4 w-5/6 bg-white/10 rounded-md"
-          animate={{ opacity: [0.4, 0.8, 0.4] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-        />
-      </div>
+      <motion.div
+        className="h-3.5 sm:h-4 w-5/6 bg-white/10 rounded-md"
+        animate={{ opacity: [0.4, 0.8, 0.4] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+      />
     </div>
-  );
-};
+  </div>
+);
 
 /* ─── Mobile Touch Swipe Navigation Order ──────────────────── */
-const TABS = ["dashboard", "study", "fitness", "health", "goals"];
+const TABS = ["dashboard", "study", "fitness", "health", "routines", "nutrition", "goals"];
 
-/* ─── Advanced Framer Motion Animation Variants ─── */
+/* ─── Animation Variants ─── */
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-    },
+    transition: { staggerChildren: 0.08 },
   },
 };
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.9, y: 20 },
+  hidden: { opacity: 0, scale: 0.95, y: 20 },
   show: {
     opacity: 1,
     scale: 1,
     y: 0,
-    transition: {
-      type: "spring",
-      stiffness: 300,
-      damping: 24,
-    },
+    transition: { type: "spring", stiffness: 300, damping: 24 },
   },
   exit: {
     opacity: 0,
-    scale: 0.5,
+    scale: 0.9,
     transition: { duration: 0.2 },
   },
 };
@@ -88,10 +88,14 @@ function DashboardView({
   onNav,
   onOpenWorkoutModal,
   onOpenStudyModal,
+  onOpenSleepModal,
+  onOpenNutritionModal,
 }: {
   onNav: (tab: string) => void;
   onOpenWorkoutModal: () => void;
   onOpenStudyModal: () => void;
+  onOpenSleepModal: () => void;
+  onOpenNutritionModal: () => void;
 }) {
   const { metrics, loading: mLoading } = useHealthMetrics();
   const { data: weeklyStats, loading: wLoading } = useWeeklyWorkoutStats();
@@ -100,10 +104,10 @@ function DashboardView({
   const { workouts, loading: wListLoading } = useRecentWorkouts(3);
   const { submitMood, moodScore } = useLatestMood();
 
-  const recoveryScore = metrics?.recovery_score ?? 84;
-  const studyMins = studyStats?.todayMinutes ?? 0;
-  const workoutCals = weeklyStats?.totalCalories ?? 0;
-  const sleepHrs = sleepData?.hours ?? 7.5;
+  const recoveryScore = metrics?.recovery_score ?? 88;
+  const studyMins = studyStats?.todayMinutes ?? 150;
+  const workoutCals = weeklyStats?.totalCalories ?? 870;
+  const sleepHrs = sleepData?.hours ?? 7.8;
 
   return (
     <motion.div
@@ -138,7 +142,7 @@ function DashboardView({
               className="living-ring-orange drop-shadow-[0_0_12px_rgba(236,106,6,0.8)] transition-all duration-1000 ease-out delay-100"
               cx="50" cy="50" fill="none" r="40" stroke="#ec6a06" strokeWidth="5"
               strokeDasharray="251.2"
-              strokeDashoffset={251.2 - Math.min((metrics?.calories_burned ?? 0) / 2500, 1) * 251.2}
+              strokeDashoffset={251.2 - Math.min((metrics?.calories_burned ?? 2150) / 2500, 1) * 251.2}
               strokeLinecap="round"
             />
           </svg>
@@ -168,105 +172,105 @@ function DashboardView({
       </motion.section>
 
       {/* Quick Actions Bento Grid */}
-      <motion.section variants={containerVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <motion.section variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <motion.button
           variants={itemVariants}
-          layout
-          whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onOpenStudyModal}
-          className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-5 sm:p-6 flex flex-col items-start justify-between h-32 sm:h-36 lg:h-40 text-left w-full cursor-pointer transform-gpu"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-tertiary-container/20 to-surface-container opacity-80" />
-          <span className="material-symbols-outlined text-tertiary text-3xl sm:text-4xl relative z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
-            menu_book
-          </span>
-          <span className="font-bold text-base sm:text-lg text-on-surface relative z-10">Log Study</span>
-          <div className="absolute -top-10 -right-10 w-32 h-32 bg-tertiary/10 rounded-full blur-3xl pointer-events-none" />
-        </motion.button>
-
-        <motion.button
-          variants={itemVariants}
-          layout
-          whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-          whileTap={{ scale: 0.98 }}
-          onClick={onOpenWorkoutModal}
-          className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-5 sm:p-6 flex flex-col items-start justify-between h-32 sm:h-36 lg:h-40 text-left w-full cursor-pointer transform-gpu"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-secondary-container/20 to-surface-container opacity-80" />
-          <span className="material-symbols-outlined text-secondary text-3xl sm:text-4xl relative z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
-            fitness_center
-          </span>
-          <span className="font-bold text-base sm:text-lg text-on-surface relative z-10">Log Workout</span>
-          <div className="absolute -top-10 -right-10 w-32 h-32 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
-        </motion.button>
-
-        <motion.button
-          variants={itemVariants}
-          layout
-          whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => onNav("health")}
-          className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-5 sm:p-6 flex flex-col items-start justify-between h-32 sm:h-36 lg:h-40 text-left w-full cursor-pointer transform-gpu"
+          className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 flex flex-col items-start justify-between h-32 text-left cursor-pointer"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary-container/20 to-surface-container opacity-80" />
-          <span className="material-symbols-outlined text-primary text-3xl sm:text-4xl relative z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
-            mood
+          <span className="material-symbols-outlined text-primary text-3xl z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
+            menu_book
           </span>
-          <span className="font-bold text-base sm:text-lg text-on-surface relative z-10">Daily Check-in</span>
-          <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+          <span className="font-bold text-sm sm:text-base text-on-surface z-10">Log Study</span>
+        </motion.button>
+
+        <motion.button
+          variants={itemVariants}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onOpenWorkoutModal}
+          className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 flex flex-col items-start justify-between h-32 text-left cursor-pointer"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary-container/20 to-surface-container opacity-80" />
+          <span className="material-symbols-outlined text-secondary text-3xl z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
+            fitness_center
+          </span>
+          <span className="font-bold text-sm sm:text-base text-on-surface z-10">Log Workout</span>
+        </motion.button>
+
+        <motion.button
+          variants={itemVariants}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onOpenSleepModal}
+          className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 flex flex-col items-start justify-between h-32 text-left cursor-pointer"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-tertiary-container/20 to-surface-container opacity-80" />
+          <span className="material-symbols-outlined text-tertiary text-3xl z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
+            bedtime
+          </span>
+          <span className="font-bold text-sm sm:text-base text-on-surface z-10">Log Sleep</span>
+        </motion.button>
+
+        <motion.button
+          variants={itemVariants}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onOpenNutritionModal}
+          className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 flex flex-col items-start justify-between h-32 text-left cursor-pointer"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/20 to-surface-container opacity-80" />
+          <span className="material-symbols-outlined text-secondary text-3xl z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
+            restaurant
+          </span>
+          <span className="font-bold text-sm sm:text-base text-on-surface z-10">Log Meal</span>
         </motion.button>
       </motion.section>
 
       {/* Summary KPI Cards */}
       <motion.section variants={containerVariants} className="grid grid-cols-3 gap-3 sm:gap-4">
-        <motion.div
-          variants={itemVariants}
-          layout
-          whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-          whileTap={{ scale: 0.98 }}
-          className="tilt-card glass-panel rounded-xl p-3.5 sm:p-4 flex flex-col items-center justify-center gap-1 sm:gap-2 text-center transform-gpu relative overflow-hidden"
-        >
-          <span className="material-symbols-outlined text-primary text-lg sm:text-xl relative z-10">timer</span>
-          <span className="text-lg sm:text-2xl text-on-surface font-extrabold relative z-10">
+        <motion.div variants={itemVariants} className="tilt-card glass-panel rounded-xl p-3.5 sm:p-4 flex flex-col items-center justify-center gap-1 text-center">
+          <span className="material-symbols-outlined text-primary text-lg sm:text-xl">timer</span>
+          <span className="text-lg sm:text-2xl text-on-surface font-extrabold">
             {sLoading ? "…" : studyMins}
             <span className="text-xs font-normal text-on-surface-variant ml-0.5">m</span>
           </span>
-          <span className="font-mono text-[10px] sm:text-xs text-on-surface-variant uppercase tracking-wider relative z-10">Study Today</span>
+          <span className="font-mono text-[10px] sm:text-xs text-on-surface-variant uppercase">Study Today</span>
         </motion.div>
 
-        <motion.div
-          variants={itemVariants}
-          layout
-          whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-          whileTap={{ scale: 0.98 }}
-          className="tilt-card glass-panel rounded-xl p-3.5 sm:p-4 flex flex-col items-center justify-center gap-1 sm:gap-2 text-center transform-gpu relative overflow-hidden"
-        >
-          <span className="material-symbols-outlined text-secondary text-lg sm:text-xl relative z-10">local_fire_department</span>
-          <span className="text-lg sm:text-2xl text-on-surface font-extrabold relative z-10">
+        <motion.div variants={itemVariants} className="tilt-card glass-panel rounded-xl p-3.5 sm:p-4 flex flex-col items-center justify-center gap-1 text-center">
+          <span className="material-symbols-outlined text-secondary text-lg sm:text-xl">local_fire_department</span>
+          <span className="text-lg sm:text-2xl text-on-surface font-extrabold">
             {wLoading ? "…" : (metrics?.calories_burned ?? workoutCals)}
             <span className="text-xs font-normal text-on-surface-variant ml-0.5">kcal</span>
           </span>
-          <span className="font-mono text-[10px] sm:text-xs text-on-surface-variant uppercase tracking-wider relative z-10">Workout</span>
+          <span className="font-mono text-[10px] sm:text-xs text-on-surface-variant uppercase">Burned</span>
         </motion.div>
 
-        <motion.div
-          variants={itemVariants}
-          layout
-          whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-          whileTap={{ scale: 0.98 }}
-          className="tilt-card glass-panel rounded-xl p-3.5 sm:p-4 flex flex-col items-center justify-center gap-1 sm:gap-2 text-center transform-gpu relative overflow-hidden"
-        >
-          <span className="material-symbols-outlined text-tertiary text-lg sm:text-xl relative z-10">bedtime</span>
-          <span className="text-lg sm:text-2xl text-on-surface font-extrabold relative z-10">
+        <motion.div variants={itemVariants} className="tilt-card glass-panel rounded-xl p-3.5 sm:p-4 flex flex-col items-center justify-center gap-1 text-center">
+          <span className="material-symbols-outlined text-tertiary text-lg sm:text-xl">bedtime</span>
+          <span className="text-lg sm:text-2xl text-on-surface font-extrabold">
             {slLoading ? "…" : sleepHrs}
             <span className="text-xs font-normal text-on-surface-variant ml-0.5">h</span>
           </span>
-          <span className="font-mono text-[10px] sm:text-xs text-on-surface-variant uppercase tracking-wider relative z-10">Sleep</span>
+          <span className="font-mono text-[10px] sm:text-xs text-on-surface-variant uppercase">Sleep</span>
         </motion.div>
       </motion.section>
 
-      {/* Activity Feed with PopLayout AnimatePresence */}
+      {/* Embedded Widgets Grid: Habits & Hydration */}
+      <motion.div variants={containerVariants} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-7">
+          <HabitTrackerWidget />
+        </div>
+        <div className="lg:col-span-5">
+          <HydrationWidget />
+        </div>
+      </motion.div>
+
+      {/* Activity Feed */}
       <motion.section variants={itemVariants} className="glass-panel rounded-2xl p-4 sm:p-6 flex flex-col gap-4">
         <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <h3 className="font-bold text-sm sm:text-base text-on-surface">Recent Output Activity</h3>
@@ -278,37 +282,15 @@ function DashboardView({
         <ul className="space-y-3">
           <AnimatePresence mode="popLayout">
             {wListLoading ? (
-              [0, 1, 2].map((idx) => (
-                <motion.div
-                  key={`skeleton-activity-${idx}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                >
-                  <SkeletonCard />
-                </motion.div>
-              ))
+              [0, 1, 2].map((idx) => <SkeletonCard key={`skel-${idx}`} />)
             ) : workouts.length === 0 ? (
-              <motion.div
-                key="empty-activity"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-8 text-on-surface-variant opacity-60"
-              >
-                <span className="material-symbols-outlined text-3xl mb-2">history</span>
-                <p className="text-xs sm:text-sm text-center">No activity logged yet today.<br />Time to sync up.</p>
-              </motion.div>
+              <p className="text-xs text-center py-8 text-on-surface-variant">No activity logged yet.</p>
             ) : (
               workouts.map((w) => (
                 <motion.li
                   key={w.id}
                   variants={itemVariants}
-                  exit="exit"
-                  layout
-                  whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
-                  whileTap={{ scale: 0.99 }}
-                  className="flex items-center gap-3 sm:gap-4 p-3.5 rounded-xl bg-surface-container-low/60 border border-white/5 cursor-pointer transform-gpu shadow-lg"
+                  className="flex items-center gap-3 sm:gap-4 p-3.5 rounded-xl bg-surface-container-low/60 border border-white/5 cursor-pointer shadow-lg"
                 >
                   <div className="w-10 h-10 rounded-full bg-secondary-container/20 flex items-center justify-center border border-secondary-container/30 shrink-0">
                     <span className="material-symbols-outlined text-secondary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -329,9 +311,9 @@ function DashboardView({
         </ul>
       </motion.section>
 
-      {/* Mood Check-In Widget */}
+      {/* Mood Check-In */}
       <motion.section variants={itemVariants} className="glass-panel rounded-2xl p-4 sm:p-6">
-        <h3 className="font-bold text-sm sm:text-base text-on-surface mb-3 sm:mb-4">Daily Mood Check-In</h3>
+        <h3 className="font-bold text-sm sm:text-base text-on-surface mb-3">Daily Mood Check-In</h3>
         <MoodSelector initialScore={moodScore ?? undefined} onSelect={submitMood} />
       </motion.section>
     </motion.div>
@@ -346,34 +328,25 @@ function FitnessView({ onOpenWorkoutModal }: { onOpenWorkoutModal: () => void })
   const { data: weeklyStats, loading: wsLoading } = useWeeklyWorkoutStats();
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, amount: 0.1 }}
-      exit="exit"
-      className="flex flex-col gap-6 w-full max-w-full overflow-hidden"
-    >
+    <motion.div variants={containerVariants} initial="hidden" whileInView="show" viewport={{ once: true }} className="flex flex-col gap-6 w-full">
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
         <div>
           <h2 className="text-xl sm:text-3xl font-extrabold text-on-surface">Fitness Hub</h2>
-          <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Synchronize output. Elevate performance.</p>
+          <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Synchronize output. Elevate athletic performance.</p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.03, transition: { duration: 0.2 } }}
-          whileTap={{ scale: 0.96 }}
+        <button
           onClick={onOpenWorkoutModal}
-          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-secondary-container text-white font-semibold text-xs sm:text-sm hover:bg-secondary-container/90 transition shadow-[0_0_20px_rgba(236,106,6,0.4)] flex items-center justify-center gap-2 cursor-pointer transform-gpu"
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-secondary-container text-white font-semibold text-xs sm:text-sm hover:bg-secondary-container/90 transition shadow-[0_0_20px_rgba(236,106,6,0.4)] flex items-center justify-center gap-2 cursor-pointer"
         >
           <span className="material-symbols-outlined text-base">add_task</span>
           Log Activity
-        </motion.button>
+        </button>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 flex flex-col gap-6">
           <motion.div variants={containerVariants} className="grid grid-cols-3 gap-3">
-            <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 rounded-xl flex flex-col items-center text-center transform-gpu">
+            <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl flex flex-col items-center text-center">
               <span className="material-symbols-outlined text-secondary text-xl mb-1">local_fire_department</span>
               <span className="text-lg sm:text-2xl font-extrabold text-on-surface">
                 {wsLoading ? "…" : (weeklyStats?.totalCalories ?? 0).toLocaleString()}
@@ -381,7 +354,7 @@ function FitnessView({ onOpenWorkoutModal }: { onOpenWorkoutModal: () => void })
               <span className="text-[10px] text-on-surface-variant font-mono uppercase mt-0.5">Weekly kcal</span>
             </motion.div>
 
-            <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 rounded-xl flex flex-col items-center text-center transform-gpu">
+            <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl flex flex-col items-center text-center">
               <span className="material-symbols-outlined text-secondary text-xl mb-1">timer</span>
               <span className="text-lg sm:text-2xl font-extrabold text-on-surface">
                 {wsLoading ? "…" : (weeklyStats?.totalMinutes ?? 0)}
@@ -389,7 +362,7 @@ function FitnessView({ onOpenWorkoutModal }: { onOpenWorkoutModal: () => void })
               <span className="text-[10px] text-on-surface-variant font-mono uppercase mt-0.5">Active Mins</span>
             </motion.div>
 
-            <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 rounded-xl flex flex-col items-center text-center transform-gpu">
+            <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl flex flex-col items-center text-center">
               <span className="material-symbols-outlined text-secondary text-xl mb-1">distance</span>
               <span className="text-lg sm:text-2xl font-extrabold text-on-surface">
                 {wsLoading ? "…" : (weeklyStats?.totalDistance ?? 0).toFixed(1)}
@@ -405,109 +378,34 @@ function FitnessView({ onOpenWorkoutModal }: { onOpenWorkoutModal: () => void })
             </h3>
 
             <ul className="space-y-3">
-              <AnimatePresence mode="popLayout">
-                {wLoading ? (
-                  [0, 1, 2, 3].map((idx) => (
-                    <motion.div
-                      key={`skeleton-fitness-${idx}`}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                    >
-                      <SkeletonCard />
-                    </motion.div>
-                  ))
-                ) : workouts.length === 0 ? (
-                  <motion.p
-                    key="empty-fitness"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="text-xs sm:text-sm text-center py-8 text-on-surface-variant"
-                  >
-                    No workout logs found. Click "Log Activity" to start tracking! 💪
-                  </motion.p>
-                ) : (
-                  workouts.map((w) => (
-                    <motion.li
-                      key={w.id}
-                      variants={itemVariants}
-                      exit="exit"
-                      layout
-                      whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
-                      whileTap={{ scale: 0.99 }}
-                      className="flex items-center gap-3 sm:gap-4 p-3.5 rounded-xl bg-surface-container-low/60 border border-white/5 hover:border-secondary/30 transition cursor-pointer transform-gpu shadow-lg"
-                    >
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-secondary-container/20 flex items-center justify-center border border-secondary-container/30 text-secondary shrink-0">
-                        <span className="material-symbols-outlined text-lg sm:text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                          fitness_center
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm font-bold text-on-surface truncate">{w.name}</p>
-                        <p className="text-[11px] text-on-surface-variant">
-                          {w.workout_date} · {w.duration_min} min
-                          {w.distance_km ? ` · ${w.distance_km} km` : ""}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-sm sm:text-base font-extrabold text-secondary">{w.calories}</span>
-                        <span className="block text-[9px] text-on-surface-variant font-mono uppercase">KCAL</span>
-                      </div>
-                    </motion.li>
-                  ))
-                )}
-              </AnimatePresence>
+              {wLoading ? (
+                [0, 1, 2].map((idx) => <SkeletonCard key={`skel-fit-${idx}`} />)
+              ) : (
+                workouts.map((w) => (
+                  <motion.li key={w.id} className="flex items-center gap-4 p-3.5 rounded-xl bg-surface-container-low/60 border border-white/5">
+                    <div className="w-10 h-10 rounded-full bg-secondary-container/20 flex items-center justify-center border border-secondary-container/30 text-secondary shrink-0">
+                      <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        fitness_center
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm font-bold text-on-surface truncate">{w.name}</p>
+                      <p className="text-[11px] text-on-surface-variant">
+                        {w.workout_date} · {w.duration_min} min {w.distance_km ? `· ${w.distance_km} km` : ""}
+                      </p>
+                    </div>
+                    <span className="text-sm font-extrabold text-secondary">{w.calories} kcal</span>
+                  </motion.li>
+                ))
+              )}
             </ul>
           </motion.section>
         </div>
 
         <div className="lg:col-span-5 flex flex-col gap-6">
           <motion.section variants={itemVariants} className="glass-panel rounded-2xl p-4 sm:p-6">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary">calendar_month</span>
-                <h3 className="font-bold text-sm sm:text-base text-on-surface">52-Week Output</h3>
-              </div>
-              <span className="text-[10px] text-secondary bg-secondary/10 px-2 py-0.5 rounded-full border border-secondary/30 font-mono">
-                284 Active Days
-              </span>
-            </div>
-
+            <h3 className="font-bold text-sm sm:text-base text-on-surface mb-4">52-Week Output Heatmap</h3>
             <StudyHeatmap />
-          </motion.section>
-
-          <motion.section variants={itemVariants} className="glass-panel rounded-2xl p-4 sm:p-6">
-            <h3 className="font-bold text-sm sm:text-base text-on-surface mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>
-                workspace_premium
-              </span>
-              Milestones & PRs
-            </h3>
-
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3 sm:gap-4 bg-surface-container-low p-3.5 rounded-xl border border-white/5">
-                <div className="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center text-white shrink-0">
-                  <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    local_fire_department
-                  </span>
-                </div>
-                <div>
-                  <p className="text-[10px] text-on-surface-variant font-mono uppercase">Current Streak</p>
-                  <p className="text-sm sm:text-base font-bold text-on-surface">12 Days</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 sm:gap-4 bg-surface-container-low p-3.5 rounded-xl border border-white/5">
-                <div className="w-9 h-9 rounded-full bg-surface-variant flex items-center justify-center text-secondary shrink-0">
-                  <span className="material-symbols-outlined text-base">bolt</span>
-                </div>
-                <div>
-                  <p className="text-[10px] text-on-surface-variant font-mono uppercase">YTD Output</p>
-                  <p className="text-sm sm:text-base font-bold text-secondary">142,000 <span className="text-xs font-normal text-on-surface-variant">kcal</span></p>
-                </div>
-              </div>
-            </div>
           </motion.section>
         </div>
       </div>
@@ -522,56 +420,47 @@ function StudyView({ onOpenStudyModal }: { onOpenStudyModal: () => void }) {
   const { data: studyStats, loading, refetch } = useStudyStats();
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, amount: 0.1 }}
-      exit="exit"
-      className="flex flex-col gap-6 w-full max-w-full overflow-hidden"
-    >
+    <motion.div variants={containerVariants} initial="hidden" whileInView="show" viewport={{ once: true }} className="flex flex-col gap-6 w-full">
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
         <div>
           <h2 className="text-xl sm:text-3xl font-extrabold text-on-surface">Study Studio</h2>
-          <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Deep focus mode. Knowledge acquisition.</p>
+          <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Deep focus mode & knowledge acquisition.</p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.03, transition: { duration: 0.2 } }}
-          whileTap={{ scale: 0.96 }}
+        <button
           onClick={onOpenStudyModal}
-          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-primary text-on-primary font-semibold text-xs sm:text-sm hover:bg-primary/90 transition shadow-[0_0_20px_rgba(76,215,246,0.4)] flex items-center justify-center gap-2 cursor-pointer transform-gpu"
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-primary text-on-primary font-semibold text-xs sm:text-sm shadow-[0_0_20px_rgba(76,215,246,0.4)] flex items-center justify-center gap-2 cursor-pointer"
         >
           <span className="material-symbols-outlined text-base">menu_book</span>
           Log Session
-        </motion.button>
+        </button>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="glass-panel p-6 sm:p-8 rounded-2xl flex justify-center border-t-2 border-primary/40">
+      <motion.div variants={itemVariants} className="glass-panel p-6 rounded-2xl flex justify-center border-t-2 border-primary/40">
         <FocusTimer initialMinutes={25} onSessionComplete={refetch} />
       </motion.div>
 
       <motion.div variants={containerVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 sm:p-4 rounded-xl text-center transform-gpu">
-          <span className="material-symbols-outlined text-primary text-xl sm:text-2xl mb-1">schedule</span>
-          <p className="text-xl sm:text-2xl font-extrabold text-on-surface">{loading ? "…" : ((studyStats?.todayMinutes ?? 0) / 60).toFixed(1)}h</p>
+        <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl text-center">
+          <span className="material-symbols-outlined text-primary text-xl mb-1">schedule</span>
+          <p className="text-xl font-extrabold text-on-surface">{loading ? "…" : ((studyStats?.todayMinutes ?? 150) / 60).toFixed(1)}h</p>
           <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">Today's Focus</p>
         </motion.div>
 
-        <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 sm:p-4 rounded-xl text-center transform-gpu">
-          <span className="material-symbols-outlined text-primary text-xl sm:text-2xl mb-1">local_fire_department</span>
-          <p className="text-xl sm:text-2xl font-extrabold text-on-surface">{loading ? "…" : (studyStats?.streakDays ?? 0)}</p>
+        <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl text-center">
+          <span className="material-symbols-outlined text-primary text-xl mb-1">local_fire_department</span>
+          <p className="text-xl font-extrabold text-on-surface">{loading ? "…" : (studyStats?.streakDays ?? 14)}</p>
           <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">Streak Days</p>
         </motion.div>
 
-        <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 sm:p-4 rounded-xl text-center transform-gpu">
-          <span className="material-symbols-outlined text-primary text-xl sm:text-2xl mb-1">checklist</span>
-          <p className="text-xl sm:text-2xl font-extrabold text-on-surface">{loading ? "…" : (studyStats?.totalSessions ?? 0)}</p>
+        <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl text-center">
+          <span className="material-symbols-outlined text-primary text-xl mb-1">checklist</span>
+          <p className="text-xl font-extrabold text-on-surface">{loading ? "…" : (studyStats?.totalSessions ?? 42)}</p>
           <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">Total Sessions</p>
         </motion.div>
 
-        <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 sm:p-4 rounded-xl text-center transform-gpu">
-          <span className="material-symbols-outlined text-primary text-xl sm:text-2xl mb-1">grade</span>
-          <p className="text-xl sm:text-2xl font-extrabold text-primary">3.92</p>
+        <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl text-center">
+          <span className="material-symbols-outlined text-primary text-xl mb-1">grade</span>
+          <p className="text-xl font-extrabold text-primary">3.92</p>
           <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">GPA Target</p>
         </motion.div>
       </motion.div>
@@ -587,33 +476,48 @@ function StudyView({ onOpenStudyModal }: { onOpenStudyModal: () => void }) {
 /* ─────────────────────────────────────────────────────────
    4. HEALTH ANALYTICS VIEW
    ───────────────────────────────────────────────────────── */
-function HealthView() {
+function HealthView({
+  onOpenSleepModal,
+  onOpenVitalsModal,
+}: {
+  onOpenSleepModal: () => void;
+  onOpenVitalsModal: () => void;
+}) {
   const { metrics, loading: mLoading } = useHealthMetrics();
   const { data: latestSleep, loading: sLoading } = useLatestSleep();
   const { submitMood, moodScore } = useLatestMood();
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, amount: 0.1 }}
-      exit="exit"
-      className="flex flex-col gap-6 w-full max-w-full overflow-hidden"
-    >
-      <motion.div variants={itemVariants}>
-        <h2 className="text-xl sm:text-3xl font-extrabold text-on-surface">Health & Recovery</h2>
-        <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Circadian Rhythm & Vital Signs Analysis</p>
+    <motion.div variants={containerVariants} initial="hidden" whileInView="show" viewport={{ once: true }} className="flex flex-col gap-6 w-full">
+      <motion.div variants={itemVariants} className="flex justify-between items-end">
+        <div>
+          <h2 className="text-xl sm:text-3xl font-extrabold text-on-surface">Health & Recovery</h2>
+          <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Circadian Rhythm & Vital Signs Analysis</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={onOpenVitalsModal}
+            className="px-3.5 py-2 rounded-xl bg-primary/20 border border-primary/40 text-primary font-semibold text-xs hover:bg-primary/30 transition cursor-pointer"
+          >
+            + Log Vitals
+          </button>
+          <button
+            onClick={onOpenSleepModal}
+            className="px-3.5 py-2 rounded-xl bg-tertiary/20 border border-tertiary/40 text-tertiary font-semibold text-xs hover:bg-tertiary/30 transition cursor-pointer"
+          >
+            + Log Sleep
+          </button>
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <motion.div variants={itemVariants} className="glass-panel p-5 sm:p-6 rounded-2xl border-t-2 border-tertiary">
           <h3 className="font-bold text-sm sm:text-base text-on-surface mb-4">Last Night's Sleep</h3>
           {sLoading ? (
-            <motion.div animate={{ opacity: [0.4, 0.8, 0.4] }} transition={{ duration: 1.5, repeat: Infinity }} className="h-28 bg-white/10 rounded-xl" />
+            <div className="h-28 bg-white/10 rounded-xl" />
           ) : (
             <SleepBar
-              hours={latestSleep?.hours ?? 7.5}
+              hours={latestSleep?.hours ?? 7.8}
               target={8}
               stages={
                 latestSleep
@@ -631,38 +535,38 @@ function HealthView() {
 
         <motion.div variants={itemVariants} className="glass-panel p-5 sm:p-6 rounded-2xl border-t-2 border-tertiary flex flex-col items-center justify-center text-center">
           <h3 className="font-bold text-sm sm:text-base text-on-surface mb-4">Body Recovery Score</h3>
-          <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-surface-container/60 border-2 border-tertiary/50 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(179,149,255,0.3)]">
-            <span className="text-3xl sm:text-4xl font-extrabold text-tertiary">{metrics?.recovery_score ?? 84}%</span>
-            <span className="text-[10px] text-on-surface-variant font-mono uppercase mt-0.5">OPTIMAL</span>
+          <div className="w-32 h-32 rounded-full bg-surface-container/60 border-2 border-tertiary/50 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(179,149,255,0.3)]">
+            <span className="text-3xl font-extrabold text-tertiary">{metrics?.recovery_score ?? 88}%</span>
+            <span className="text-[10px] text-on-surface-variant font-mono uppercase">OPTIMAL</span>
           </div>
           <p className="text-xs text-on-surface-variant mt-4">
-            System is fully restored. High readiness for intensive output.
+            System fully restored. High readiness for intensive deep work and output.
           </p>
         </motion.div>
       </div>
 
       <motion.div variants={containerVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 sm:p-4 rounded-xl text-center transform-gpu">
-          <span className="material-symbols-outlined text-tertiary text-xl sm:text-2xl mb-1">ecg_heart</span>
-          <p className="text-lg sm:text-2xl font-extrabold text-on-surface">{mLoading ? "…" : (metrics?.hrv_ms ?? 68)} ms</p>
+        <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl text-center">
+          <span className="material-symbols-outlined text-tertiary text-xl mb-1">ecg_heart</span>
+          <p className="text-lg sm:text-2xl font-extrabold text-on-surface">{mLoading ? "…" : (metrics?.hrv_ms ?? 72)} ms</p>
           <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">HRV Score</p>
         </motion.div>
 
-        <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 sm:p-4 rounded-xl text-center transform-gpu">
-          <span className="material-symbols-outlined text-tertiary text-xl sm:text-2xl mb-1">air</span>
-          <p className="text-lg sm:text-2xl font-extrabold text-on-surface">{mLoading ? "…" : (metrics?.spo2 ?? 98)}%</p>
+        <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl text-center">
+          <span className="material-symbols-outlined text-tertiary text-xl mb-1">air</span>
+          <p className="text-lg sm:text-2xl font-extrabold text-on-surface">{mLoading ? "…" : (metrics?.spo2 ?? 99)}%</p>
           <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">SpO₂ Level</p>
         </motion.div>
 
-        <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 sm:p-4 rounded-xl text-center transform-gpu">
-          <span className="material-symbols-outlined text-tertiary text-xl sm:text-2xl mb-1">device_thermostat</span>
+        <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl text-center">
+          <span className="material-symbols-outlined text-tertiary text-xl mb-1">device_thermostat</span>
           <p className="text-lg sm:text-2xl font-extrabold text-on-surface">{mLoading ? "…" : (metrics?.body_temp ?? 36.6)}°C</p>
           <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">Body Temp</p>
         </motion.div>
 
-        <motion.div variants={itemVariants} layout whileHover={{ scale: 1.02 }} className="glass-panel p-3.5 sm:p-4 rounded-xl text-center transform-gpu">
-          <span className="material-symbols-outlined text-tertiary text-xl sm:text-2xl mb-1">psychology</span>
-          <p className="text-lg sm:text-2xl font-extrabold text-on-surface">{mLoading ? "…" : (metrics?.stress_pct ?? 28)}%</p>
+        <motion.div variants={itemVariants} className="glass-panel p-3.5 rounded-xl text-center">
+          <span className="material-symbols-outlined text-tertiary text-xl mb-1">psychology</span>
+          <p className="text-lg sm:text-2xl font-extrabold text-on-surface">{mLoading ? "…" : (metrics?.stress_pct ?? 22)}%</p>
           <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">Stress Level</p>
         </motion.div>
       </motion.div>
@@ -676,9 +580,101 @@ function HealthView() {
 }
 
 /* ─────────────────────────────────────────────────────────
-   5. GOALS VIEW
+   5. ROUTINES & HABITS VIEW
    ───────────────────────────────────────────────────────── */
-function GoalsView({ onShowToast }: { onShowToast: (msg: string) => void }) {
+function RoutinesView() {
+  return (
+    <motion.div variants={containerVariants} initial="hidden" whileInView="show" viewport={{ once: true }} className="flex flex-col gap-6 w-full">
+      <motion.div variants={itemVariants}>
+        <h2 className="text-xl sm:text-3xl font-extrabold text-on-surface">Daily Routines & Habits</h2>
+        <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Automate discipline. Build compounding streak momentum.</p>
+      </motion.div>
+      <HabitTrackerWidget />
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   6. NUTRITION & HYDRATION VIEW
+   ───────────────────────────────────────────────────────── */
+function NutritionView({ onOpenNutritionModal }: { onOpenNutritionModal: () => void }) {
+  const { meals, stats } = useNutrition();
+
+  return (
+    <motion.div variants={containerVariants} initial="hidden" whileInView="show" viewport={{ once: true }} className="flex flex-col gap-6 w-full">
+      <motion.div variants={itemVariants} className="flex justify-between items-end">
+        <div>
+          <h2 className="text-xl sm:text-3xl font-extrabold text-on-surface">Hydration & Nutrition</h2>
+          <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Fuel your bio-engine with precision macronutrients.</p>
+        </div>
+        <button
+          onClick={onOpenNutritionModal}
+          className="px-4 py-2.5 rounded-xl bg-secondary text-slate-950 font-bold text-xs shadow-[0_0_20px_rgba(236,106,6,0.4)] hover:bg-secondary/90 transition cursor-pointer"
+        >
+          + Log Meal
+        </button>
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-6">
+          <HydrationWidget />
+        </div>
+
+        <div className="lg:col-span-6 glass-panel rounded-2xl p-5 sm:p-6 flex flex-col justify-between">
+          <div>
+            <h3 className="font-bold text-sm sm:text-base text-on-surface mb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-secondary">pie_chart</span>
+              Daily Macro Totals
+            </h3>
+
+            <div className="grid grid-cols-4 gap-2 text-center my-4">
+              <div className="bg-surface-container-low p-2.5 rounded-xl border border-white/5">
+                <span className="text-lg font-extrabold text-secondary">{stats.totalCalories}</span>
+                <span className="block text-[9px] text-on-surface-variant font-mono">KCAL</span>
+              </div>
+              <div className="bg-surface-container-low p-2.5 rounded-xl border border-white/5">
+                <span className="text-lg font-extrabold text-primary">{stats.totalProtein}g</span>
+                <span className="block text-[9px] text-on-surface-variant font-mono">PROTEIN</span>
+              </div>
+              <div className="bg-surface-container-low p-2.5 rounded-xl border border-white/5">
+                <span className="text-lg font-extrabold text-tertiary">{stats.totalCarbs}g</span>
+                <span className="block text-[9px] text-on-surface-variant font-mono">CARBS</span>
+              </div>
+              <div className="bg-surface-container-low p-2.5 rounded-xl border border-white/5">
+                <span className="text-lg font-extrabold text-secondary">{stats.totalFats}g</span>
+                <span className="block text-[9px] text-on-surface-variant font-mono">FATS</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 mt-2">
+            <h4 className="font-mono text-xs text-on-surface-variant uppercase">Logged Meals</h4>
+            {meals.map((m) => (
+              <div key={m.id} className="flex justify-between items-center p-2.5 rounded-xl bg-surface-container-low/60 border border-white/5 text-xs">
+                <div>
+                  <span className="font-bold text-on-surface capitalize">{m.name}</span>
+                  <span className="text-[10px] text-on-surface-variant ml-2 font-mono uppercase">({m.mealType})</span>
+                </div>
+                <span className="font-mono font-bold text-secondary">{m.calories} kcal</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   7. GOALS VIEW
+   ───────────────────────────────────────────────────────── */
+function GoalsView({
+  onShowToast,
+  onOpenGoalModal,
+}: {
+  onShowToast: (msg: string) => void;
+  onOpenGoalModal: () => void;
+}) {
   const { goals, loading, updating, updateProgress } = useGoals();
 
   const handleUpdate = async (id: string, newProg: number, title: string) => {
@@ -687,56 +683,36 @@ function GoalsView({ onShowToast }: { onShowToast: (msg: string) => void }) {
   };
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, amount: 0.1 }}
-      exit="exit"
-      className="flex flex-col gap-6 w-full max-w-full overflow-hidden"
-    >
-      <motion.div variants={itemVariants}>
-        <h2 className="text-xl sm:text-3xl font-extrabold text-on-surface">Milestones & Goals</h2>
-        <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Track strategic objectives and achievements</p>
+    <motion.div variants={containerVariants} initial="hidden" whileInView="show" viewport={{ once: true }} className="flex flex-col gap-6 w-full">
+      <motion.div variants={itemVariants} className="flex justify-between items-end">
+        <div>
+          <h2 className="text-xl sm:text-3xl font-extrabold text-on-surface">Milestones & Strategic Goals</h2>
+          <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Track core objectives and key achievements.</p>
+        </div>
+        <button
+          onClick={onOpenGoalModal}
+          className="px-4 py-2.5 rounded-xl bg-primary text-slate-950 font-bold text-xs shadow-[0_0_20px_rgba(76,215,246,0.4)] hover:bg-primary/90 transition cursor-pointer"
+        >
+          + New Goal
+        </button>
       </motion.div>
 
       <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <AnimatePresence mode="popLayout">
           {loading ? (
-            [0, 1, 2, 3].map((index) => (
-              <motion.div
-                key={`skeleton-goal-${index}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-              >
-                <SkeletonCard />
-              </motion.div>
-            ))
+            [0, 1, 2].map((idx) => <SkeletonCard key={`skel-g-${idx}`} />)
           ) : goals.length === 0 ? (
-            <motion.p
-              key="empty-goals"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="col-span-full text-xs sm:text-sm text-center py-12 text-on-surface-variant"
-            >
-              No goals found. Execute the database seed to load initial goals! 🎯
-            </motion.p>
+            <p className="col-span-full text-xs text-center py-12 text-on-surface-variant">No goals found. Click "+ New Goal" to start tracking!</p>
           ) : (
             goals.map((g) => (
               <motion.li
                 key={g.id}
                 variants={itemVariants}
-                exit="exit"
-                layout
-                whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-                whileTap={{ scale: 0.98 }}
-                className="glass-panel p-4 sm:p-6 rounded-2xl flex flex-col gap-4 transform-gpu relative overflow-hidden shadow-xl"
+                className="glass-panel p-4 sm:p-6 rounded-2xl flex flex-col gap-4 shadow-xl"
               >
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-lg sm:text-xl shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-xl shrink-0">
                       {g.icon}
                     </div>
                     <div>
@@ -744,14 +720,11 @@ function GoalsView({ onShowToast }: { onShowToast: (msg: string) => void }) {
                       <p className="text-[10px] text-primary font-mono uppercase">{g.category}</p>
                     </div>
                   </div>
-                  <span className="text-lg sm:text-xl font-extrabold text-primary shrink-0">{g.progress}%</span>
+                  <span className="text-lg font-extrabold text-primary shrink-0">{g.progress}%</span>
                 </div>
 
                 <div className="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-primary h-full rounded-full transition-all duration-500"
-                    style={{ width: `${g.progress}%` }}
-                  />
+                  <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: `${g.progress}%` }} />
                 </div>
 
                 <div className="flex justify-between items-center text-[11px] text-on-surface-variant">
@@ -771,8 +744,6 @@ function GoalsView({ onShowToast }: { onShowToast: (msg: string) => void }) {
                     </button>
                   ))}
                 </div>
-
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
               </motion.li>
             ))
           )}
@@ -783,13 +754,17 @@ function GoalsView({ onShowToast }: { onShowToast: (msg: string) => void }) {
 }
 
 /* ─────────────────────────────────────────────────────────
-   MAIN PAGE: SUPABASE AUTH & FULL STACK INTEGRATION
+   MAIN PAGE APPLICATON
    ───────────────────────────────────────────────────────── */
 export default function Home() {
   const { user, isAuthenticated, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
   const [showStudyModal, setShowStudyModal] = useState(false);
+  const [showSleepModal, setShowSleepModal] = useState(false);
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [showNutritionModal, setShowNutritionModal] = useState(false);
+  const [showGoalModal, setShowGoalModal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -799,7 +774,25 @@ export default function Home() {
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  const handleExportData = () => {
+    const jsonStr = exportAllDataJSON();
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lifesync-backup-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    showToast("💾 Exported full personal data backup!");
+  };
+
+  const handleResetData = () => {
+    if (confirm("Are you sure you want to reset all tracking data to baseline demo defaults?")) {
+      resetBaselineData();
+      showToast("🔄 Reset data to baseline demo defaults!");
+    }
+  };
+
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const swipeThreshold = 50;
     const currentIndex = TABS.indexOf(activeTab);
 
@@ -818,6 +811,8 @@ export default function Home() {
             onNav={setActiveTab}
             onOpenWorkoutModal={() => setShowWorkoutModal(true)}
             onOpenStudyModal={() => setShowStudyModal(true)}
+            onOpenSleepModal={() => setShowSleepModal(true)}
+            onOpenNutritionModal={() => setShowNutritionModal(true)}
           />
         );
       case "study":
@@ -825,15 +820,26 @@ export default function Home() {
       case "fitness":
         return <FitnessView onOpenWorkoutModal={() => setShowWorkoutModal(true)} />;
       case "health":
-        return <HealthView />;
+        return (
+          <HealthView
+            onOpenSleepModal={() => setShowSleepModal(true)}
+            onOpenVitalsModal={() => setShowVitalsModal(true)}
+          />
+        );
+      case "routines":
+        return <RoutinesView />;
+      case "nutrition":
+        return <NutritionView onOpenNutritionModal={() => setShowNutritionModal(true)} />;
       case "goals":
-        return <GoalsView onShowToast={showToast} />;
+        return <GoalsView onShowToast={showToast} onOpenGoalModal={() => setShowGoalModal(true)} />;
       default:
         return (
           <DashboardView
             onNav={setActiveTab}
             onOpenWorkoutModal={() => setShowWorkoutModal(true)}
             onOpenStudyModal={() => setShowStudyModal(true)}
+            onOpenSleepModal={() => setShowSleepModal(true)}
+            onOpenNutritionModal={() => setShowNutritionModal(true)}
           />
         );
     }
@@ -844,46 +850,76 @@ export default function Home() {
       {/* Toast Notification Banner */}
       <ToastNotification message={toastMsg} onClear={() => setToastMsg(null)} />
 
-      {/* Command Palette (Cmd+K) */}
+      {/* Command Palette */}
       <CommandPalette
         isOpen={showCommandPalette}
         onClose={() => setShowCommandPalette(false)}
         onSelectNav={setActiveTab}
         onOpenWorkoutModal={() => setShowWorkoutModal(true)}
         onOpenStudyModal={() => setShowStudyModal(true)}
+        onOpenSleepModal={() => setShowSleepModal(true)}
+        onOpenVitalsModal={() => setShowVitalsModal(true)}
+        onOpenNutritionModal={() => setShowNutritionModal(true)}
+        onOpenGoalModal={() => setShowGoalModal(true)}
+        onExportData={handleExportData}
+        onResetData={handleResetData}
         onShowToast={showToast}
       />
 
-      {/* Supabase Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={(msg) => showToast(msg)}
-      />
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={showToast} />
 
-      {/* Modals with AnimatePresence */}
+      {/* Interactive Modals */}
       <AnimatePresence>
         {showWorkoutModal && (
           <LogWorkoutModal
             key="workout-modal"
             onClose={() => setShowWorkoutModal(false)}
-            onSaved={() => showToast("🏃 Workout activity logged to Supabase!")}
+            onSaved={() => showToast("🏃 Workout activity logged!")}
           />
         )}
         {showStudyModal && (
           <LogStudyModal
             key="study-modal"
             onClose={() => setShowStudyModal(false)}
-            onSaved={() => showToast("📚 Study session logged to Supabase!")}
+            onSaved={() => showToast("📚 Study session logged!")}
+          />
+        )}
+        {showSleepModal && (
+          <LogSleepModal
+            key="sleep-modal"
+            onClose={() => setShowSleepModal(false)}
+            onSaved={() => showToast("🌙 Sleep session logged!")}
+          />
+        )}
+        {showVitalsModal && (
+          <LogVitalsModal
+            key="vitals-modal"
+            onClose={() => setShowVitalsModal(false)}
+            onSaved={() => showToast("❤️‍🔥 Health vitals updated!")}
+          />
+        )}
+        {showNutritionModal && (
+          <LogNutritionModal
+            key="nutrition-modal"
+            onClose={() => setShowNutritionModal(false)}
+            onSaved={() => showToast("🥗 Meal & macros logged!")}
+          />
+        )}
+        {showGoalModal && (
+          <CreateGoalModal
+            key="goal-modal"
+            onClose={() => setShowGoalModal(false)}
+            onSaved={() => showToast("🎯 New goal created!")}
           />
         )}
       </AnimatePresence>
 
-      {/* Navigation Drawer (Desktop LG+) */}
+      {/* Desktop Drawer Navigation (LG+) */}
       <nav className="hidden lg:flex flex-col fixed left-0 top-0 h-full z-[60] bg-surface-dim/95 backdrop-blur-2xl w-72 rounded-r-2xl border-r border-white/10 shadow-2xl">
         <div className="p-6 border-b border-white/5">
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-12 h-12 rounded-full overflow-hidden border border-white/10 relative bg-primary/20 flex items-center justify-center font-bold text-xl text-primary">
+            <div className="w-12 h-12 rounded-full border border-white/10 relative bg-primary/20 flex items-center justify-center font-bold text-xl text-primary">
               ⚡
             </div>
             <div className="min-w-0">
@@ -901,65 +937,58 @@ export default function Home() {
               <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>
                 local_fire_department
               </span>
-              <span className="text-xs text-secondary font-semibold font-mono">12 Day Streak</span>
+              <span className="text-xs text-secondary font-semibold font-mono">14 Day Streak</span>
             </div>
             {isAuthenticated ? (
-              <button
-                onClick={async () => {
-                  await signOut();
-                  showToast("Signed out of Supabase session.");
-                }}
-                className="text-[10px] text-error hover:underline font-mono"
-              >
+              <button onClick={() => signOut()} className="text-[10px] text-error hover:underline font-mono">
                 Sign Out
               </button>
             ) : (
-              <button
-                onClick={() => setShowAuthModal(true)}
-                className="text-[10px] text-primary hover:underline font-mono"
-              >
+              <button onClick={() => setShowAuthModal(true)} className="text-[10px] text-primary hover:underline font-mono">
                 Sign In
               </button>
             )}
           </div>
         </div>
 
-        {/* Desktop Nav Buttons */}
-        <div className="flex flex-col gap-2 p-4 flex-grow">
+        {/* Desktop Nav Items */}
+        <div className="flex flex-col gap-1.5 p-4 flex-grow overflow-y-auto">
           {[
             { id: "dashboard", label: "Dashboard", icon: "dashboard" },
             { id: "study", label: "Study Studio", icon: "menu_book" },
             { id: "fitness", label: "Fitness Hub", icon: "fitness_center" },
             { id: "health", label: "Health Analytics", icon: "ecg_heart" },
+            { id: "routines", label: "Routines & Habits", icon: "published_with_changes" },
+            { id: "nutrition", label: "Hydration & Nutrition", icon: "restaurant" },
             { id: "goals", label: "Milestones", icon: "insights" },
           ].map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`px-5 py-3.5 flex items-center gap-4 rounded-xl transition-colors text-left w-full cursor-pointer ${
+              className={`px-4 py-3 flex items-center gap-3.5 rounded-xl transition-colors text-left w-full cursor-pointer ${
                 activeTab === item.id
                   ? "bg-primary/10 text-primary border-r-4 border-primary font-bold shadow-[0_0_15px_rgba(76,215,246,0.2)]"
                   : "text-on-surface-variant hover:text-on-surface hover:bg-white/5"
               }`}
             >
-              <span className="material-symbols-outlined">{item.icon}</span>
-              <span className="text-sm font-semibold">{item.label}</span>
+              <span className="material-symbols-outlined text-lg">{item.icon}</span>
+              <span className="text-xs sm:text-sm font-semibold">{item.label}</span>
             </button>
           ))}
         </div>
 
-        <div className="p-6 border-t border-white/5 flex items-center justify-between">
-          <div className="text-xl tracking-tighter text-primary font-extrabold drop-shadow-[0_0_8px_rgba(76,215,246,0.5)]">
+        <div className="p-4 border-t border-white/5 flex flex-col gap-2">
+          <div className="flex justify-between items-center text-[11px] text-on-surface-variant font-mono">
+            <button onClick={handleExportData} className="hover:text-primary transition flex items-center gap-1 cursor-pointer">
+              <span className="material-symbols-outlined text-xs">download</span> Export
+            </button>
+            <button onClick={handleResetData} className="hover:text-error transition flex items-center gap-1 cursor-pointer">
+              <span className="material-symbols-outlined text-xs">restart_alt</span> Reset
+            </button>
+          </div>
+          <div className="text-lg tracking-tighter text-primary font-extrabold drop-shadow-[0_0_8px_rgba(76,215,246,0.5)]">
             LifeSync OS
           </div>
-          {!isAuthenticated && (
-            <button
-              onClick={() => setShowAuthModal(true)}
-              className="text-xs text-primary bg-primary/10 border border-primary/30 px-3 py-1 rounded-lg font-semibold hover:bg-primary/20 transition"
-            >
-              Auth
-            </button>
-          )}
         </div>
       </nav>
 
@@ -971,16 +1000,13 @@ export default function Home() {
           </div>
           <span className="lg:hidden font-bold text-sm text-primary tracking-tight">LifeSync OS</span>
 
-          {/* Command Palette Trigger */}
           <button
             onClick={() => setShowCommandPalette(true)}
             className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container/60 border border-white/10 text-on-surface-variant hover:text-on-surface hover:border-primary/40 transition text-xs font-medium cursor-pointer"
           >
             <span className="material-symbols-outlined text-base text-primary">search</span>
             <span>Search & Commands</span>
-            <span className="font-mono text-[10px] bg-white/10 px-1.5 py-0.5 rounded border border-white/10 ml-2">
-              ⌘K
-            </span>
+            <span className="font-mono text-[10px] bg-white/10 px-1.5 py-0.5 rounded border border-white/10 ml-2">⌘K</span>
           </button>
         </div>
 
@@ -994,10 +1020,7 @@ export default function Home() {
             </button>
           ) : (
             <button
-              onClick={async () => {
-                await signOut();
-                showToast("Signed out of Supabase.");
-              }}
+              onClick={() => signOut()}
               className="px-3 py-1.5 rounded-xl bg-surface-container-high border border-white/10 text-on-surface-variant hover:text-error text-xs font-mono transition cursor-pointer"
             >
               Sign Out
@@ -1015,15 +1038,9 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Container */}
+      {/* Main Content Area */}
       <main className="pt-20 sm:pt-24 px-4 sm:px-8 pb-28 sm:pb-12 max-w-[1440px] lg:ml-72 w-full overflow-hidden">
-        <motion.div
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.15}
-          onDragEnd={handleDragEnd}
-          className="touch-pan-y w-full"
-        >
+        <motion.div drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.15} onDragEnd={handleDragEnd} className="touch-pan-y w-full">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -1046,6 +1063,8 @@ export default function Home() {
           { id: "study", icon: "menu_book" },
           { id: "fitness", icon: "fitness_center" },
           { id: "health", icon: "ecg_heart" },
+          { id: "routines", icon: "published_with_changes" },
+          { id: "nutrition", icon: "restaurant" },
           { id: "goals", icon: "insights" },
         ].map((item) => (
           <button
@@ -1057,7 +1076,7 @@ export default function Home() {
                 : "text-on-surface-variant hover:text-primary"
             }`}
           >
-            <span className="material-symbols-outlined text-xl">{item.icon}</span>
+            <span className="material-symbols-outlined text-lg">{item.icon}</span>
           </button>
         ))}
       </nav>
