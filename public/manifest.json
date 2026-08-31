@@ -1,0 +1,31 @@
+{
+  "name": "LifeSync OS — Personal Health & Life Tracker",
+  "short_name": "LifeSync OS",
+  "description": "Installable offline-capable performance OS for personal health, study, fitness, sleep, hydration, and goal tracking.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f131c",
+  "theme_color": "#0f131c",
+  "orientation": "any",
+  "categories": ["health", "fitness", "productivity", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

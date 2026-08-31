@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import PwaRegister from "@/components/PwaRegister";
 import "./globals.css";
 
 const inter = Inter({
@@ -9,11 +10,29 @@ const inter = Inter({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#0f131c",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export const metadata: Metadata = {
-  title: "LifeSync OS — Main Dashboard",
+  title: "LifeSync OS — Personal Health & Life Tracker",
   description:
     "A futuristic glassmorphism performance OS dashboard synchronizing health, fitness, study, and cognitive goals.",
-  keywords: ["LifeSync OS", "performance dashboard", "fitness hub", "health analytics", "glassmorphism"],
+  keywords: ["LifeSync OS", "PWA", "performance dashboard", "fitness hub", "health analytics", "offline app"],
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icons/icon-192.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "LifeSync OS",
+  },
 };
 
 export default function RootLayout({
@@ -37,6 +56,7 @@ export default function RootLayout({
         <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js" async defer />
       </head>
       <body className={`${inter.className} bg-background text-on-background min-h-screen font-body-md selection:bg-primary/30 relative overflow-x-hidden`}>
+        <PwaRegister />
         {children}
       </body>
     </html>
