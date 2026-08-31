@@ -39,35 +39,44 @@ function useAsync<T>(fetcher: () => Promise<T>) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetcher();
-      setData(result);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-    } finally {
-      setLoading(false);
-    }
+  const executeFetch = useCallback(() => {
+    let isMounted = true;
+    fetcher()
+      .then((res) => {
+        if (isMounted) {
+          setData(res);
+          setError(null);
+        }
+      })
+      .catch((e) => {
+        if (isMounted) setError(e instanceof Error ? e.message : "Unknown error");
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => { isMounted = false; };
   }, [fetcher]);
 
+  const refetch = useCallback(() => {
+    setLoading(true);
+    executeFetch();
+  }, [executeFetch]);
 
   useEffect(() => {
-    fetch();
-
-    const handleLocalUpdate = () => { fetch(); };
+    const cancel = executeFetch();
+    const handleLocalUpdate = () => { executeFetch(); };
     if (typeof window !== "undefined") {
       window.addEventListener("lifesync-db-update", handleLocalUpdate);
     }
     return () => {
+      cancel();
       if (typeof window !== "undefined") {
         window.removeEventListener("lifesync-db-update", handleLocalUpdate);
       }
     };
-  }, [fetch]);
+  }, [executeFetch]);
 
-  return { data, loading, error, refetch: fetch };
+  return { data, loading, error, refetch };
 }
 
 // ─────────────────────────────────────────────────────────

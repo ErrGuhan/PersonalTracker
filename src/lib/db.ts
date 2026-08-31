@@ -1,4 +1,4 @@
-// ─── LifeSync OS — Hybrid Data Access Layer (Supabase + LocalStorage Engine) ─────
+// ─── LifeSync OS — Dynamic Data Engine with Real-Time Recovery Calculation ─────
 import { supabase } from "./supabase";
 import type {
   HealthMetric,
@@ -14,9 +14,6 @@ import type {
 
 export const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
 
-// ─────────────────────────────────────────────────────────
-// INITIAL BASELINE DEMO DATA
-// ─────────────────────────────────────────────────────────
 const todayStr = () => new Date().toISOString().split("T")[0];
 
 const INITIAL_HEALTH_METRICS: HealthMetric = {
@@ -76,19 +73,6 @@ const INITIAL_WORKOUTS: Workout[] = [
     workout_date: new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
     created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
   },
-  {
-    id: "w-4",
-    user_id: DEMO_USER_ID,
-    name: "Recovery Zone 2 Cycling",
-    type: "cardio",
-    duration_min: 50,
-    calories: 410,
-    avg_heart_rate: 132,
-    distance_km: 18.5,
-    notes: "Kept HR strictly under 135 bpm for aerobic base building.",
-    workout_date: new Date(Date.now() - 86400000 * 3).toISOString().split("T")[0],
-    created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
-  },
 ];
 
 const INITIAL_STUDY_SESSIONS: StudySession[] = [
@@ -109,24 +93,6 @@ const INITIAL_STUDY_SESSIONS: StudySession[] = [
     focus_score: 88,
     session_date: todayStr(),
     created_at: new Date().toISOString(),
-  },
-  {
-    id: "st-3",
-    user_id: DEMO_USER_ID,
-    subject: "TypeScript & React State Patterns",
-    duration_min: 120,
-    focus_score: 92,
-    session_date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: "st-4",
-    user_id: DEMO_USER_ID,
-    subject: "Database Indexing & Query Optimization",
-    duration_min: 75,
-    focus_score: 90,
-    session_date: new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
-    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
   },
 ];
 
@@ -193,19 +159,6 @@ const INITIAL_GOALS: Goal[] = [
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
-  {
-    id: "g-4",
-    user_id: DEMO_USER_ID,
-    title: "Read 12 Technical Books",
-    category: "Mindset",
-    icon: "📚",
-    progress: 40,
-    target_description: "5 of 12 books completed",
-    detail: "Currently reading: Designing Data-Intensive Applications",
-    accent: "#4cd7f6",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
 ];
 
 const INITIAL_HABITS: Habit[] = [
@@ -221,7 +174,7 @@ const INITIAL_HABITS: Habit[] = [
   },
   {
     id: "h-2",
-    title: "10,000 Steps",
+    title: "10,000 Daily Steps",
     category: "fitness",
     streak: 8,
     completedToday: false,
@@ -231,33 +184,13 @@ const INITIAL_HABITS: Habit[] = [
   },
   {
     id: "h-3",
-    title: "Deep Work Focus Block (50m)",
+    title: "Deep Work Block (50m)",
     category: "focus",
     streak: 21,
     completedToday: true,
     frequency: "Daily",
     targetCount: 2,
     icon: "psychology",
-  },
-  {
-    id: "h-4",
-    title: "Cold Shower / Cryo Reset",
-    category: "health",
-    streak: 5,
-    completedToday: true,
-    frequency: "Daily",
-    targetCount: 1,
-    icon: "ac_unit",
-  },
-  {
-    id: "h-5",
-    title: "No Screen 30m Before Bed",
-    category: "mindset",
-    streak: 11,
-    completedToday: false,
-    frequency: "Daily",
-    targetCount: 1,
-    icon: "do_not_disturb_on",
   },
 ];
 
@@ -280,7 +213,7 @@ const INITIAL_MEALS: MealLog[] = [
   },
   {
     id: "m-2",
-    name: "Grilled Chicken & Quinoa Power Bowl",
+    name: "Grilled Chicken & Quinoa Bowl",
     mealType: "lunch",
     calories: 620,
     proteinG: 52,
@@ -288,21 +221,24 @@ const INITIAL_MEALS: MealLog[] = [
     fatsG: 16,
     loggedAt: new Date().toISOString(),
   },
-  {
-    id: "m-3",
-    name: "Whey Isolate & Blueberry Smoothie",
-    mealType: "snack",
-    calories: 280,
-    proteinG: 32,
-    carbsG: 25,
-    fatsG: 4,
-    loggedAt: new Date().toISOString(),
-  },
 ];
 
-// ─────────────────────────────────────────────────────────
-// LOCAL STORAGE HELPER WITH BROADCAST NOTIFICATION
-// ─────────────────────────────────────────────────────────
+// Helper to calculate Recovery Score dynamically
+function calculateDynamicRecovery(metrics: HealthMetric, sleep: SleepLog | null): number {
+  const sleepHrs = sleep?.hours ?? 7.8;
+  const hydrationPct = metrics.hydration_pct ?? 70;
+  const hrv = metrics.hrv_ms ?? 72;
+  const stress = metrics.stress_pct ?? 22;
+
+  const score =
+    (sleepHrs / 8) * 35 +
+    (hydrationPct / 100) * 25 +
+    (Math.min(hrv, 100) / 100) * 25 +
+    ((100 - stress) / 100) * 15;
+
+  return Math.min(100, Math.max(35, Math.round(score)));
+}
+
 function notifyUpdate() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("lifesync-db-update"));
@@ -315,7 +251,7 @@ function getLocal<T>(key: string, fallback: T): T {
     const raw = localStorage.getItem(`lifesync_${key}`);
     return raw ? JSON.parse(raw) : fallback;
   } catch (err) {
-    console.warn(`[LocalStorage] Failed to read ${key}:`, err);
+    console.warn(`[LocalStorage] Read ${key} error:`, err);
     return fallback;
   }
 }
@@ -326,14 +262,14 @@ function setLocal<T>(key: string, value: T): T {
       localStorage.setItem(`lifesync_${key}`, JSON.stringify(value));
       notifyUpdate();
     } catch (err) {
-      console.warn(`[LocalStorage] Failed to write ${key}:`, err);
+      console.warn(`[LocalStorage] Write ${key} error:`, err);
     }
   }
   return value;
 }
 
 // ─────────────────────────────────────────────────────────
-// HEALTH METRICS DATA ACCESS
+// HEALTH METRICS
 // ─────────────────────────────────────────────────────────
 
 export async function getLatestHealthMetrics(): Promise<HealthMetric | null> {
@@ -350,7 +286,10 @@ export async function getLatestHealthMetrics(): Promise<HealthMetric | null> {
   } catch (err) {
     console.warn("[DB] health_metrics query fallback to local:", err);
   }
-  return getLocal("health_metrics", INITIAL_HEALTH_METRICS);
+  const current = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
+  const sleep = getLocal("sleep_log", INITIAL_SLEEP_LOG);
+  const calculatedRec = calculateDynamicRecovery(current, sleep);
+  return { ...current, recovery_score: calculatedRec };
 }
 
 export async function getHealthMetricHistory(days = 7): Promise<HealthMetric[]> {
@@ -369,17 +308,21 @@ export async function getHealthMetricHistory(days = 7): Promise<HealthMetric[]> 
   } catch (err) {
     console.warn("[DB] health_metrics history fallback to local:", err);
   }
-  const single = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
-  return [single];
+  const current = await getLatestHealthMetrics();
+  return current ? [current] : [INITIAL_HEALTH_METRICS];
 }
 
 export async function upsertHealthMetrics(
   metrics: Partial<HealthMetric>
 ): Promise<HealthMetric | null> {
   const current = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
+  const sleep = getLocal("sleep_log", INITIAL_SLEEP_LOG);
+  const tempUpdated: HealthMetric = { ...current, ...metrics };
+  const calcRec = calculateDynamicRecovery(tempUpdated, sleep);
+
   const updated: HealthMetric = {
-    ...current,
-    ...metrics,
+    ...tempUpdated,
+    recovery_score: calcRec,
     recorded_at: new Date().toISOString(),
   };
   setLocal("health_metrics", updated);
@@ -393,7 +336,7 @@ export async function upsertHealthMetrics(
 
     if (!error && data) return data as HealthMetric;
   } catch (err) {
-    console.warn("[DB] upsert health_metrics save to local only:", err);
+    console.warn("[DB] upsert health_metrics local fallback:", err);
   }
   return updated;
 }
@@ -468,10 +411,8 @@ export async function logWorkout(
 
   // Update calories in health_metrics
   const currentMetrics = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
-  setLocal("health_metrics", {
-    ...currentMetrics,
-    calories_burned: (currentMetrics.calories_burned ?? 2000) + workout.calories,
-  });
+  const updatedBurn = (currentMetrics.calories_burned ?? 2000) + workout.calories;
+  await upsertHealthMetrics({ calories_burned: updatedBurn });
 
   try {
     const { data, error } = await supabase
@@ -488,7 +429,7 @@ export async function logWorkout(
 }
 
 // ─────────────────────────────────────────────────────────
-// STUDY SESSIONS DATA ACCESS
+// STUDY SESSIONS
 // ─────────────────────────────────────────────────────────
 
 export interface StudyStats {
@@ -510,7 +451,7 @@ export async function getStudyStats(): Promise<StudyStats> {
     if (!error && data && data.length > 0) sessions = data as StudySession[];
     else sessions = getLocal("study_sessions", INITIAL_STUDY_SESSIONS);
   } catch (err) {
-    console.warn("[DB] study stats query fallback to local:", err);
+    console.warn("[DB] study stats fallback to local:", err);
     sessions = getLocal("study_sessions", INITIAL_STUDY_SESSIONS);
   }
 
@@ -659,6 +600,11 @@ export async function logSleep(
   };
 
   setLocal("sleep_log", newSleep);
+
+  // Recalculate dynamic recovery score
+  const currentMetrics = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
+  const calcRec = calculateDynamicRecovery(currentMetrics, newSleep);
+  setLocal("health_metrics", { ...currentMetrics, recovery_score: calcRec });
 
   try {
     const { data, error } = await supabase
@@ -815,10 +761,14 @@ export function addWater(amountMl: number): HydrationLog {
   };
   setLocal("hydration", updated);
 
-  // Update hydration_pct in health metrics
   const pct = Math.min(100, Math.round((updated.amountMl / updated.targetMl) * 100));
   const currentMetrics = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
-  setLocal("health_metrics", { ...currentMetrics, hydration_pct: pct });
+  const sleep = getLocal("sleep_log", INITIAL_SLEEP_LOG);
+
+  const tempUpdated = { ...currentMetrics, hydration_pct: pct };
+  const calcRec = calculateDynamicRecovery(tempUpdated, sleep);
+
+  setLocal("health_metrics", { ...tempUpdated, recovery_score: calcRec });
 
   return updated;
 }
