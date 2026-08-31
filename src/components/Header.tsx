@@ -1,199 +1,155 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@supabase/supabase-js";
+import { 
+  Zap, 
+  Search, 
+  User as UserIcon, 
+  LogOut, 
+  Sparkles, 
+  ChevronDown 
+} from "lucide-react";
+
+// Initialize Supabase Client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key"
+);
 
 interface HeaderProps {
-  onOpenAuthModal: () => void;
-  onOpenCommandPalette: () => void;
-  onExportData?: () => void;
-  onResetData?: () => void;
+  onOpenAuth?: () => void;
+  onOpenSearch?: () => void;
 }
 
-export default function Header({
-  onOpenAuthModal,
-  onOpenCommandPalette,
-  onExportData,
-  onResetData,
-}: HeaderProps) {
-  const { user, isAuthenticated, signOut } = useAuth();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
+  const [user, setUser] = useState<unknown>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Close dropdown menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
+    // 1. Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // 2. Real-time auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const userInitial = (user?.email?.[0] || "A").toUpperCase();
-  const userName = user?.email ? user.email.split("@")[0] : "Athlete";
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setMenuOpen(false);
+  };
+
+  const userEmail = (user as { email?: string } | null)?.email;
 
   return (
-    <header className="fixed top-0 left-0 w-full lg:w-[calc(100%-18rem)] lg:left-72 z-50 bg-black/40 backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-      {/* Brand Mark & Mobile Title */}
-      <div className="flex items-center gap-3">
-        {/* Neon Glow Badge */}
-        <div className="relative flex items-center justify-center">
-          <div className="absolute inset-0 bg-primary/30 rounded-xl blur-md animate-pulse" />
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/30 to-surface-container border border-primary/40 flex items-center justify-center font-bold text-lg text-primary shadow-[0_0_12px_rgba(76,215,246,0.4)] relative">
-            ⚡
+    <header className="fixed top-0 left-0 lg:left-72 w-full lg:w-[calc(100%-18rem)] z-50 px-4 sm:px-6 py-3 bg-[#0B0F17]/70 backdrop-blur-xl border-b border-white/[0.08]">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        
+        {/* Brand Logo & Name */}
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-600/30 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.25)]">
+            <Zap className="w-5 h-5 text-cyan-400 fill-cyan-400/30" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-base font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              LifeSync <span className="text-cyan-400 font-semibold text-xs tracking-wider uppercase ml-0.5">OS</span>
+            </span>
           </div>
         </div>
 
-        <div>
-          <h1 className="font-extrabold text-base sm:text-lg text-white tracking-tight flex items-center gap-1.5">
-            LifeSync <span className="text-gradient-cyan">OS</span>
-          </h1>
-          <p className="font-mono text-[9px] text-primary/80 tracking-widest uppercase hidden sm:block">
-            PERFORMANCE & BIO-SYNC ENGINE
-          </p>
-        </div>
-      </div>
-
-      {/* Middle Command Palette Search Trigger */}
-      <motion.button
-        whileHover={{ scale: 1.02, borderColor: "rgba(76,215,246,0.5)" }}
-        whileTap={{ scale: 0.97 }}
-        onClick={onOpenCommandPalette}
-        className="hidden md:flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-on-surface-variant hover:text-white transition-all text-xs font-medium cursor-pointer shadow-inner"
-      >
-        <span className="material-symbols-outlined text-primary text-base">search</span>
-        <span>Search metrics & commands…</span>
-        <span className="font-mono text-[10px] bg-white/10 text-primary font-bold px-2 py-0.5 rounded border border-white/10 ml-3">
-          ⌘K
-        </span>
-      </motion.button>
-
-      {/* Right Side Actions: Auth CTA or Profile Pill */}
-      <div className="flex items-center gap-3">
-        {/* Mobile Search Icon Button */}
-        <button
-          onClick={onOpenCommandPalette}
-          className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10 text-on-surface-variant hover:text-white active:scale-95 transition"
-        >
-          <span className="material-symbols-outlined text-lg">search</span>
-        </button>
-
-        {/* Auth Condition State */}
-        {!isAuthenticated ? (
-          /* Creative Multi-Layered Sign In Button */
+        {/* Right Actions: Search + Auth CTA */}
+        <div className="flex items-center gap-3">
+          {/* Quick Search Trigger */}
           <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={onOpenAuthModal}
-            className="relative group p-0.5 rounded-xl overflow-hidden cursor-pointer shadow-[0_0_20px_rgba(76,215,246,0.35)]"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onOpenSearch}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 transition-colors cursor-pointer"
+            aria-label="Search"
           >
-            {/* Animated Shimmer Background */}
-            <span className="absolute inset-0 bg-gradient-to-r from-primary via-cyan-300 to-amber-400 opacity-90 group-hover:opacity-100 transition duration-300 animate-pulse" />
-            <div className="relative px-4 py-2 rounded-[10px] bg-slate-950 text-white font-bold text-xs flex items-center gap-2 group-hover:bg-opacity-90 transition">
-              <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-              <span>Sign In</span>
-              <span className="material-symbols-outlined text-sm text-primary group-hover:translate-x-0.5 transition-transform">
-                arrow_forward
-              </span>
-            </div>
+            <Search className="w-4 h-4" />
           </motion.button>
-        ) : (
-          /* Authenticated User Profile Avatar Pill with Dropdown */
-          <div className="relative" ref={menuRef}>
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setDropdownOpen((v) => !v)}
-              className="flex items-center gap-2.5 p-1.5 pr-3.5 rounded-full bg-surface-container-high/80 border border-primary/30 hover:border-primary/60 backdrop-blur-md transition shadow-[0_0_15px_rgba(76,215,246,0.2)] cursor-pointer"
-            >
-              <div className="relative w-8 h-8 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center font-extrabold text-sm text-primary">
-                {userInitial}
-                {/* Active Online Status Dot */}
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-950" />
-              </div>
-              <span className="font-bold text-xs text-white max-w-[100px] truncate hidden sm:block">
-                {userName}
-              </span>
-              <span className="material-symbols-outlined text-sm text-on-surface-variant">
-                {dropdownOpen ? "expand_less" : "expand_more"}
-              </span>
-            </motion.button>
 
-            {/* Profile Dropdown Menu */}
-            <AnimatePresence>
-              {dropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 mt-2 w-56 rounded-2xl bg-surface-dim/95 border border-white/15 backdrop-blur-2xl p-2 shadow-[0_16px_40px_rgba(0,0,0,0.8)] text-on-surface space-y-1 z-50"
+          <AnimatePresence mode="wait">
+            {!user ? (
+              /* Creative Glowing Sign In Button */
+              <motion.button
+                key="signin-btn"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={onOpenAuth}
+                className="relative group p-[1px] rounded-xl overflow-hidden focus:outline-none cursor-pointer"
+              >
+                {/* Animated Gradient Border Glow */}
+                <span className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-indigo-500 to-amber-500 rounded-xl opacity-75 group-hover:opacity-100 transition-opacity duration-300 animate-pulse" />
+
+                <div className="relative flex items-center gap-2 px-3.5 py-1.5 rounded-[11px] bg-[#0F172A]/90 backdrop-blur-md transition-colors group-hover:bg-[#0F172A]/70">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                  <span className="text-xs font-semibold text-white tracking-wide">
+                    Sign In
+                  </span>
+                </div>
+              </motion.button>
+            ) : (
+              /* Authenticated User Profile Pill */
+              <div className="relative" key="user-menu">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] transition-colors cursor-pointer"
                 >
-                  <div className="p-3 border-b border-white/10">
-                    <p className="font-bold text-xs text-white truncate">{userName}</p>
-                    <p className="font-mono text-[10px] text-on-surface-variant truncate">{user?.email}</p>
-                    <span className="inline-block font-mono text-[9px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 mt-1">
-                      ● Active Bio-Sync
-                    </span>
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                    {userEmail ? userEmail.charAt(0).toUpperCase() : <UserIcon className="w-3.5 h-3.5" />}
                   </div>
+                  <span className="text-xs font-medium text-slate-200 max-w-[90px] truncate hidden sm:inline">
+                    {userEmail?.split("@")[0]}
+                  </span>
+                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${menuOpen ? "rotate-180" : ""}`} />
+                </motion.button>
 
-                  <button
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      onOpenCommandPalette();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-on-surface-variant hover:text-white hover:bg-white/10 transition text-left cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-sm text-primary">tune</span>
-                    Quick Settings (⌘K)
-                  </button>
-
-                  {onExportData && (
-                    <button
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        onExportData();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-on-surface-variant hover:text-white hover:bg-white/10 transition text-left cursor-pointer"
+                {/* Dropdown Menu */}
+                <AnimatePresence>
+                  {menuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-48 rounded-2xl bg-[#0F172A]/95 backdrop-blur-2xl border border-white/[0.12] p-1.5 shadow-2xl shadow-black/80 z-50"
                     >
-                      <span className="material-symbols-outlined text-sm text-secondary">download</span>
-                      Export Data Backup
-                    </button>
+                      <div className="px-3 py-2 border-b border-white/[0.08] mb-1">
+                        <p className="text-[11px] text-slate-400">Signed in as</p>
+                        <p className="text-xs font-semibold text-white truncate">{userEmail}</p>
+                      </div>
+
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </motion.div>
                   )}
+                </AnimatePresence>
+              </div>
+            )}
+          </AnimatePresence>
 
-                  {onResetData && (
-                    <button
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        onResetData();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-on-surface-variant hover:text-error hover:bg-error/10 transition text-left cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm text-error">restart_alt</span>
-                      Reset Baseline Data
-                    </button>
-                  )}
-
-                  <div className="border-t border-white/10 pt-1">
-                    <button
-                      onClick={async () => {
-                        setDropdownOpen(false);
-                        await signOut();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-error hover:bg-error/15 transition text-left cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">logout</span>
-                      Log Out
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
+        </div>
       </div>
     </header>
   );

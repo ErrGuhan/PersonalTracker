@@ -1011,10 +1011,8 @@ export default function Home() {
 
       {/* Top Glassmorphic Header */}
       <Header
-        onOpenAuthModal={() => setShowAuthModal(true)}
-        onOpenCommandPalette={() => setShowCommandPalette(true)}
-        onExportData={handleExportData}
-        onResetData={handleResetData}
+        onOpenAuth={() => setShowAuthModal(true)}
+        onOpenSearch={() => setShowCommandPalette(true)}
       />
 
       {/* Main Content Area — Safe Mobile Padding (pb-36 lg:pb-12) */}
