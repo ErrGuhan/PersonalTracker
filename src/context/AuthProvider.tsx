@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { resetAllDataToDefault } from "@/lib/db";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -43,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase]);
 
   const signIn = async (email: string, pass: string) => {
+    // Purge local cache prior to session load
+    resetAllDataToDefault();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password: pass,
@@ -52,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, pass: string) => {
+    resetAllDataToDefault();
     const { data, error } = await supabase.auth.signUp({
       email,
       password: pass,
@@ -61,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    resetAllDataToDefault();
     const { error } = await supabase.auth.signOut();
     setUser(null);
     setSession(null);
