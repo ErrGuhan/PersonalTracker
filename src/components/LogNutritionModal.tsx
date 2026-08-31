@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNutrition } from "@/hooks/useSupabase";
+import { estimateNutritionAction } from "@/app/actions/estimateNutrition";
 
 interface LogNutritionModalProps {
   onClose: () => void;
@@ -11,26 +12,61 @@ interface LogNutritionModalProps {
 
 export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModalProps) {
   const { logMeal } = useNutrition();
-  const [form, setForm] = useState({
-    name: "",
-    mealType: "lunch" as "breakfast" | "lunch" | "dinner" | "snack",
-    calories: 550,
-    proteinG: 40,
-    carbsG: 50,
-    fatsG: 15,
-  });
+
+  // Form State
+  const [mealCategory, setMealCategory] = useState<"breakfast" | "lunch" | "dinner" | "snack">("lunch");
+  const [mealDescription, setMealDescription] = useState("");
+  const [calories, setCalories] = useState<number>(550);
+  const [protein, setProtein] = useState<number>(40);
+  const [carbs, setCarbs] = useState<number>(50);
+  const [fats, setFats] = useState<number>(15);
+
+  // AI Loading & Saved States
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiSuccess, setAiSuccess] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  /* ─────────────────────────────────────────────────────────
+     1. ON BLUR AI AUTO-FILL TRIGGER
+     ───────────────────────────────────────────────────────── */
+  const handleMealBlur = async () => {
+    if (!mealDescription.trim() || isAnalyzing) return;
+
+    setIsAnalyzing(true);
+    setAiSuccess(false);
+
+    try {
+      const result = await estimateNutritionAction(mealDescription);
+      if (result.success) {
+        setCalories(result.calories);
+        setProtein(result.protein);
+        setCarbs(result.carbs);
+        setFats(result.fats);
+        setAiSuccess(true);
+      }
+    } catch (err) {
+      console.warn("[LogNutritionModal] AI Estimation failed:", err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  /* ─────────────────────────────────────────────────────────
+     2. SUPABASE SUBMISSION MUTATION
+     ───────────────────────────────────────────────────────── */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Inserts row into nutrition_logs / meals Supabase table
     logMeal({
-      name: form.name || `${form.mealType.toUpperCase()} Meal`,
-      mealType: form.mealType,
-      calories: Number(form.calories),
-      proteinG: Number(form.proteinG),
-      carbsG: Number(form.carbsG),
-      fatsG: Number(form.fatsG),
+      name: mealDescription.trim() || `${mealCategory.toUpperCase()} Meal`,
+      mealType: mealCategory,
+      calories: Number(calories),
+      proteinG: Number(protein),
+      carbsG: Number(carbs),
+      fatsG: Number(fats),
     });
+
     setSaved(true);
     setTimeout(() => {
       onSaved();
@@ -43,30 +79,40 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-md"
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: "spring", stiffness: 350, damping: 25 }}
-        className="w-full max-w-lg rounded-2xl bg-gradient-to-b from-surface-container-high/90 to-surface-dim/95 border-t border-white/10 border-b border-black/40 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl text-on-surface space-y-5"
+        transition={{ type: "spring", stiffness: 350, damping: 26 }}
+        className="w-full max-w-lg rounded-2xl bg-gradient-to-b from-surface-container-high/95 to-surface-dim/98 border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-on-surface space-y-5"
       >
-        <div className="flex items-center justify-between">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div>
-            <h2 className="text-lg sm:text-xl font-extrabold text-on-surface">Log Meal / Nutrition</h2>
-            <p className="font-mono text-xs text-secondary tracking-wider uppercase mt-0.5">FUEL · MACRONUTRIENTS</p>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-secondary text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                restaurant
+              </span>
+              <h2 className="text-lg sm:text-xl font-extrabold text-white">Log Meal / Nutrition</h2>
+            </div>
+            <p className="font-mono text-[10px] text-secondary tracking-wider uppercase mt-0.5">
+              GEMINI AI NUTRITION AUTO-FILL
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-white/10 transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-white/10 transition"
           >
             ✕
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Meal Category Selector */}
           <div>
             <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-2">
               Meal Category
@@ -76,11 +122,11 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setForm({ ...form, mealType: type })}
+                  onClick={() => setMealCategory(type)}
                   className={`py-2 text-xs font-semibold rounded-xl border transition-colors capitalize ${
-                    form.mealType === type
+                    mealCategory === type
                       ? "border-secondary bg-secondary/15 text-secondary shadow-[0_0_12px_rgba(236,106,6,0.3)]"
-                      : "border-white/10 bg-white/5 text-on-surface-variant hover:text-on-surface"
+                      : "border-white/10 bg-white/5 text-on-surface-variant hover:text-white"
                   }`}
                 >
                   {type}
@@ -89,85 +135,128 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
             </div>
           </div>
 
+          {/* Meal Description Input with onBlur AI Auto-Fill */}
           <div>
-            <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
-              Meal Description
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Salmon Quinoa Salad"
-              required
-              className="w-full bg-surface-container/60 border-b-2 border-white/10 border-t-0 border-x-0 focus:border-secondary text-on-surface text-sm px-3 py-2.5 outline-none"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
+            <div className="flex justify-between items-center mb-1">
+              <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider">
+                Meal Description
+              </label>
+              {isAnalyzing && (
+                <span className="font-mono text-[10px] text-secondary animate-pulse flex items-center gap-1">
+                  <span className="material-symbols-outlined text-xs animate-spin">sync</span>
+                  Analyzing Macros…
+                </span>
+              )}
+              {aiSuccess && !isAnalyzing && (
+                <span className="font-mono text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                  ✓ AI Auto-filled Macros
+                </span>
+              )}
+            </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="e.g. Salmon Quinoa Salad with Avocado"
+                required
+                className="w-full bg-surface-container/70 border border-white/15 rounded-xl text-white text-sm px-3.5 py-3 outline-none focus:border-secondary transition shadow-inner placeholder:text-white/30"
+                value={mealDescription}
+                onChange={(e) => {
+                  setMealDescription(e.target.value);
+                  setAiSuccess(false);
+                }}
+                onBlur={handleMealBlur}
+              />
+              <button
+                type="button"
+                onClick={handleMealBlur}
+                disabled={!mealDescription.trim() || isAnalyzing}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg bg-secondary/20 border border-secondary/40 text-secondary text-[11px] font-bold hover:bg-secondary/30 transition disabled:opacity-40"
+              >
+                ✨ Estimate
+              </button>
+            </div>
+            <p className="text-[10px] text-on-surface-variant font-mono mt-1">
+              Tip: Click out or press tab to auto-estimate calories & macros using Gemini.
+            </p>
           </div>
 
+          {/* Calories Input Field with Pulsing AI Loading State */}
           <div>
             <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
               Energy / Calories (kcal)
             </label>
-            <input
-              type="number"
-              min={0}
-              required
-              className="w-full bg-surface-container/60 border-b-2 border-white/10 border-t-0 border-x-0 focus:border-secondary text-on-surface text-base px-3 py-2.5 outline-none font-extrabold text-secondary"
-              value={form.calories}
-              onChange={(e) => setForm({ ...form, calories: Number(e.target.value) })}
-            />
+            <div className={`relative rounded-xl transition-all duration-300 ${isAnalyzing ? "animate-pulse border border-secondary/50 bg-secondary/10" : ""}`}>
+              <input
+                type="number"
+                min={0}
+                required
+                className="w-full bg-surface-container/60 border border-white/15 rounded-xl text-secondary text-lg font-extrabold px-3.5 py-2.5 outline-none focus:border-secondary transition"
+                value={calories}
+                onChange={(e) => setCalories(Number(e.target.value))}
+              />
+            </div>
           </div>
 
+          {/* Macros Grid (Protein, Carbs, Fats) with Pulsing AI Loading State */}
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
                 Protein (g)
               </label>
-              <input
-                type="number"
-                min={0}
-                className="w-full bg-surface-container/60 border-b-2 border-white/10 border-t-0 border-x-0 focus:border-secondary text-on-surface text-sm px-3 py-2 outline-none"
-                value={form.proteinG}
-                onChange={(e) => setForm({ ...form, proteinG: Number(e.target.value) })}
-              />
+              <div className={`rounded-xl transition-all duration-300 ${isAnalyzing ? "animate-pulse border border-primary/50 bg-primary/10" : ""}`}>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full bg-surface-container/60 border border-white/15 rounded-xl text-primary text-sm font-bold px-3 py-2 outline-none focus:border-primary transition"
+                  value={protein}
+                  onChange={(e) => setProtein(Number(e.target.value))}
+                />
+              </div>
             </div>
 
             <div>
               <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
                 Carbs (g)
               </label>
-              <input
-                type="number"
-                min={0}
-                className="w-full bg-surface-container/60 border-b-2 border-white/10 border-t-0 border-x-0 focus:border-secondary text-on-surface text-sm px-3 py-2 outline-none"
-                value={form.carbsG}
-                onChange={(e) => setForm({ ...form, carbsG: Number(e.target.value) })}
-              />
+              <div className={`rounded-xl transition-all duration-300 ${isAnalyzing ? "animate-pulse border border-tertiary/50 bg-tertiary/10" : ""}`}>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full bg-surface-container/60 border border-white/15 rounded-xl text-tertiary text-sm font-bold px-3 py-2 outline-none focus:border-tertiary transition"
+                  value={carbs}
+                  onChange={(e) => setCarbs(Number(e.target.value))}
+                />
+              </div>
             </div>
 
             <div>
               <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
                 Fats (g)
               </label>
-              <input
-                type="number"
-                min={0}
-                className="w-full bg-surface-container/60 border-b-2 border-white/10 border-t-0 border-x-0 focus:border-secondary text-on-surface text-sm px-3 py-2 outline-none"
-                value={form.fatsG}
-                onChange={(e) => setForm({ ...form, fatsG: Number(e.target.value) })}
-              />
+              <div className={`rounded-xl transition-all duration-300 ${isAnalyzing ? "animate-pulse border border-secondary/50 bg-secondary/10" : ""}`}>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full bg-surface-container/60 border border-white/15 rounded-xl text-secondary text-sm font-bold px-3 py-2 outline-none focus:border-secondary transition"
+                  value={fats}
+                  onChange={(e) => setFats(Number(e.target.value))}
+                />
+              </div>
             </div>
           </div>
 
+          {/* Submit Button */}
           <button
             type="submit"
-            disabled={saved}
-            className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 shadow-[0_0_20px_rgba(236,106,6,0.3)] active:scale-[0.98] ${
+            disabled={saved || isAnalyzing}
+            className={`w-full py-3.5 rounded-xl font-extrabold text-sm transition-all duration-200 shadow-[0_0_20px_rgba(236,106,6,0.3)] active:scale-[0.98] ${
               saved
                 ? "bg-emerald-500 text-white"
-                : "bg-gradient-to-r from-secondary-container to-secondary text-white font-bold hover:shadow-[0_0_30px_rgba(236,106,6,0.5)]"
+                : "bg-gradient-to-r from-secondary-container via-secondary to-amber-500 text-slate-950 hover:shadow-[0_0_30px_rgba(236,106,6,0.5)]"
             }`}
           >
-            {saved ? "✓ Meal Logged!" : "Save Meal"}
+            {saved ? "✓ Meal Tracked to Supabase!" : "Save & Track Meal"}
           </button>
         </form>
       </motion.div>
