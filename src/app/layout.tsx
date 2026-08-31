@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import PwaRegister from "@/components/PwaRegister";
+import { AuthProvider } from "@/context/AuthProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -56,8 +57,10 @@ export default function RootLayout({
         <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js" async defer />
       </head>
       <body className={`${inter.className} bg-background text-on-background min-h-screen font-body-md selection:bg-primary/30 relative overflow-x-hidden`}>
-        <PwaRegister />
-        {children}
+        <AuthProvider>
+          <PwaRegister />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

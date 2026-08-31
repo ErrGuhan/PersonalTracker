@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { createClient } from "@supabase/supabase-js";
+import { useAuthContext } from "@/context/AuthProvider";
 import { 
   Zap, 
   Search, 
@@ -12,43 +12,21 @@ import {
   ChevronDown 
 } from "lucide-react";
 
-// Initialize Supabase Client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key"
-);
-
 interface HeaderProps {
   onOpenAuth?: () => void;
   onOpenSearch?: () => void;
 }
 
 export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
-  const [user, setUser] = useState<unknown>(null);
+  const { user, isAuthenticated, signOut } = useAuthContext();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  useEffect(() => {
-    // 1. Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    // 2. Real-time auth listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     setMenuOpen(false);
   };
 
-  const userEmail = (user as { email?: string } | null)?.email;
+  const userEmail = user?.email;
 
   return (
     <header className="fixed top-0 left-0 lg:left-72 w-full lg:w-[calc(100%-18rem)] z-50 px-4 sm:px-6 py-3 bg-[#0B0F17]/70 backdrop-blur-xl border-b border-white/[0.08]">
@@ -80,7 +58,7 @@ export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
           </motion.button>
 
           <AnimatePresence mode="wait">
-            {!user ? (
+            {!isAuthenticated ? (
               /* Creative Glowing Sign In Button */
               <motion.button
                 key="signin-btn"
