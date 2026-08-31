@@ -105,10 +105,10 @@ function DashboardView({
   const { workouts, loading: wListLoading } = useRecentWorkouts(3);
   const { submitMood, moodScore } = useLatestMood();
 
-  const recoveryScore = metrics?.recovery_score ?? 88;
-  const studyMins = studyStats?.todayMinutes ?? 150;
-  const workoutCals = weeklyStats?.totalCalories ?? 870;
-  const sleepHrs = sleepData?.hours ?? 7.8;
+  const recoveryScore = metrics?.recovery_score ?? 0;
+  const studyMins = studyStats?.todayMinutes ?? 0;
+  const workoutCals = weeklyStats?.totalCalories ?? 0;
+  const sleepHrs = sleepData?.hours ?? 0;
 
   return (
     <motion.div
@@ -1002,10 +1002,10 @@ export default function Home() {
             </div>
             <div className="min-w-0">
               <h2 className="font-bold text-base text-white truncate">
-                {isAuthenticated ? user?.email?.split("@")[0] : "Alex Chen"}
+                {isAuthenticated ? (user?.email?.split("@")[0] || "User") : "Guest User"}
               </h2>
               <p className="text-xs text-on-surface-variant font-mono truncate">
-                {isAuthenticated ? user?.email : "Level 24 Performer"}
+                {isAuthenticated ? user?.email : "Sign in to sync data"}
               </p>
             </div>
           </div>
@@ -1015,7 +1015,9 @@ export default function Home() {
               <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>
                 local_fire_department
               </span>
-              <span className="text-xs text-secondary font-semibold font-mono">14 Day Streak</span>
+              <span className="text-xs text-secondary font-semibold font-mono">
+                {isAuthenticated ? "Active Session" : "Offline Mode"}
+              </span>
             </div>
             {isAuthenticated ? (
               <button onClick={() => signOut()} className="text-[10px] text-error hover:underline font-mono">
