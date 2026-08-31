@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useCreateGoal } from "@/hooks/useSupabase";
 
@@ -18,6 +19,7 @@ const CATEGORIES = [
 ];
 
 export default function CreateGoalModal({ onClose, onSaved }: CreateGoalModalProps) {
+  const router = useRouter();
   const { createGoal, saving } = useCreateGoal();
   const [form, setForm] = useState({
     title: "",
@@ -33,20 +35,25 @@ export default function CreateGoalModal({ onClose, onSaved }: CreateGoalModalPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const catObj = CATEGORIES.find((c) => c.value === form.category);
-    await createGoal({
-      title: form.title,
-      category: form.category,
-      icon: form.icon || catObj?.icon || "🎯",
-      progress: Number(form.progress),
-      target_description: form.target_description || "Strategic Milestone",
-      detail: form.detail || "Active goal tracker",
-      accent: catObj?.accent || "#4cd7f6",
-    });
-    setSaved(true);
-    setTimeout(() => {
-      onSaved();
-      onClose();
-    }, 600);
+    try {
+      await createGoal({
+        title: form.title,
+        category: form.category,
+        icon: form.icon || catObj?.icon || "🎯",
+        progress: Number(form.progress),
+        target_description: form.target_description || "Strategic Milestone",
+        detail: form.detail || "Active goal tracker",
+        accent: catObj?.accent || "#4cd7f6",
+      });
+      router.refresh();
+      setSaved(true);
+      setTimeout(() => {
+        onSaved();
+        onClose();
+      }, 600);
+    } catch (err) {
+      console.error("[Supabase createGoal Error]:", err);
+    }
   };
 
   return (

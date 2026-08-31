@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useLogStudySession } from "@/hooks/useSupabase";
 
@@ -18,6 +19,7 @@ const QUICK_CHIPS = [
 ];
 
 export default function LogStudyModal({ onClose, onSaved }: LogStudyModalProps) {
+  const router = useRouter();
   const { logSession, saving } = useLogStudySession();
 
   // State Management
@@ -33,14 +35,18 @@ export default function LogStudyModal({ onClose, onSaved }: LogStudyModalProps) 
     e.preventDefault();
     if (!subject.trim()) return;
 
-    // Inserts row into study_sessions / study_logs Supabase table
-    await logSession(subject.trim(), durationMin, focusScore);
-    setSaved(true);
-
-    setTimeout(() => {
-      onSaved();
-      onClose();
-    }, 600);
+    try {
+      // Inserts row into study_sessions / study_logs Supabase table
+      await logSession(subject.trim(), durationMin, focusScore);
+      router.refresh();
+      setSaved(true);
+      setTimeout(() => {
+        onSaved();
+        onClose();
+      }, 600);
+    } catch (err) {
+      console.error("[Supabase logSession Error]:", err);
+    }
   };
 
   return (

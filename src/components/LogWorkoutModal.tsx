@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLogWorkout } from "@/hooks/useSupabase";
 import { generateWorkoutAction, type AiWorkoutResult, type ExerciseItem } from "@/app/actions/generateWorkout";
@@ -26,6 +27,7 @@ const WORKOUT_TYPES = [
 ];
 
 export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalProps) {
+  const router = useRouter();
   const { logWorkout, saving } = useLogWorkout();
   const [mode, setMode] = useState<"ai" | "manual">("ai");
 
@@ -33,12 +35,13 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
   const [aiState, setAiState] = useState<"prompt" | "generating" | "proposed">("prompt");
   const [userPrompt, setUserPrompt] = useState("");
   const [aiResult, setAiResult] = useState<AiWorkoutResult | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   // Manual Form State
   const [manualForm, setManualForm] = useState({
     name: "",
-    type: "strength",
+    type: "strength" as "strength" | "run" | "hiit" | "cardio" | "yoga",
     duration_min: 45,
     calories: 400,
     distance_km: "",
@@ -55,9 +58,16 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
     if (!query.trim()) return;
 
     setAiState("generating");
-    const result = await generateWorkoutAction(query);
-    setAiResult(result);
-    setAiState("proposed");
+    setAiError(null);
+    try {
+      const result = await generateWorkoutAction(query);
+      setAiResult(result);
+      setAiState("proposed");
+    } catch (err) {
+      console.error("[Gemini Action Error]:", err);
+      setAiError(err instanceof Error ? err.message : "Failed to generate workout.");
+      setAiState("prompt");
+    }
   };
 
   /* ─────────────────────────────────────────────────────────
@@ -66,26 +76,32 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
   const handleAcceptAndTrack = async () => {
     if (!aiResult) return;
 
-    const exercisesNotes = aiResult.exercises
-      .map((e) => `${e.exercise_name}: ${e.sets}x${e.reps} (${e.notes})`)
-      .join("\n");
+    try {
+      const exercisesNotes = aiResult.exercises
+        .map((e) => `${e.exercise_name}: ${e.sets}x${e.reps} (${e.notes})`)
+        .join("\n");
 
-    await logWorkout({
-      name: aiResult.workout_name,
-      type: "strength",
-      duration_min: aiResult.duration_min,
-      calories: aiResult.total_estimated_kcal,
-      avg_heart_rate: 145,
-      distance_km: null,
-      notes: `AI Generated Routine:\n${exercisesNotes}`,
-      workout_date: new Date().toISOString().split("T")[0],
-    });
+      await logWorkout({
+        name: aiResult.workout_name,
+        type: "strength",
+        duration_min: aiResult.duration_min,
+        calories: aiResult.total_estimated_kcal,
+        avg_heart_rate: 145,
+        distance_km: null,
+        notes: `AI Generated Routine:\n${exercisesNotes}`,
+        workout_date: new Date().toISOString().split("T")[0],
+      });
 
-    setSaved(true);
-    setTimeout(() => {
-      onSaved();
-      onClose();
-    }, 600);
+      router.refresh();
+      setSaved(true);
+      setTimeout(() => {
+        onSaved();
+        onClose();
+      }, 600);
+    } catch (err) {
+      console.error("[Supabase logWorkout Error]:", err);
+      setAiError("Failed to save workout to database.");
+    }
   };
 
   /* ─────────────────────────────────────────────────────────
@@ -93,21 +109,27 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
      ───────────────────────────────────────────────────────── */
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await logWorkout({
-      name: manualForm.name || "Custom Workout",
-      type: manualForm.type,
-      duration_min: Number(manualForm.duration_min),
-      calories: Number(manualForm.calories),
-      avg_heart_rate: manualForm.avg_heart_rate ? Number(manualForm.avg_heart_rate) : null,
-      distance_km: manualForm.distance_km ? Number(manualForm.distance_km) : null,
-      notes: manualForm.notes || null,
-      workout_date: manualForm.workout_date,
-    });
-    setSaved(true);
-    setTimeout(() => {
-      onSaved();
-      onClose();
-    }, 600);
+    try {
+      await logWorkout({
+        name: manualForm.name || "Custom Workout",
+        type: manualForm.type,
+        duration_min: Number(manualForm.duration_min),
+        calories: Number(manualForm.calories),
+        avg_heart_rate: manualForm.avg_heart_rate ? Number(manualForm.avg_heart_rate) : null,
+        distance_km: manualForm.distance_km ? Number(manualForm.distance_km) : null,
+        notes: manualForm.notes || null,
+        workout_date: manualForm.workout_date,
+      });
+
+      router.refresh();
+      setSaved(true);
+      setTimeout(() => {
+        onSaved();
+        onClose();
+      }, 600);
+    } catch (err) {
+      console.error("[Supabase logWorkout Error]:", err);
+    }
   };
 
   return (
@@ -373,7 +395,7 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
                     <button
                       key={t.value}
                       type="button"
-                      onClick={() => setManualForm((f) => ({ ...f, type: t.value }))}
+                      onClick={() => setManualForm((f) => ({ ...f, type: t.value as "strength" | "run" | "hiit" | "cardio" | "yoga" }))}
                       className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
                         manualForm.type === t.value
                           ? "border-primary bg-primary/20 text-primary shadow-[0_0_12px_rgba(76,215,246,0.4)] font-bold"

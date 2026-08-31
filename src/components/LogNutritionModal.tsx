@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useNutrition } from "@/hooks/useSupabase";
 import { estimateNutritionAction } from "@/app/actions/estimateNutrition";
@@ -11,6 +12,7 @@ interface LogNutritionModalProps {
 }
 
 export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModalProps) {
+  const router = useRouter();
   const { logMeal } = useNutrition();
 
   // Form State
@@ -54,24 +56,28 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
   /* ─────────────────────────────────────────────────────────
      2. SUPABASE SUBMISSION MUTATION
      ───────────────────────────────────────────────────────── */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Inserts row into nutrition_logs / meals Supabase table
-    logMeal({
-      name: mealDescription.trim() || `${mealCategory.toUpperCase()} Meal`,
-      mealType: mealCategory,
-      calories: Number(calories),
-      proteinG: Number(protein),
-      carbsG: Number(carbs),
-      fatsG: Number(fats),
-    });
+    try {
+      await logMeal({
+        name: mealDescription.trim() || `${mealCategory.toUpperCase()} Meal`,
+        mealType: mealCategory,
+        calories: Number(calories),
+        proteinG: Number(protein),
+        carbsG: Number(carbs),
+        fatsG: Number(fats),
+      });
 
-    setSaved(true);
-    setTimeout(() => {
-      onSaved();
-      onClose();
-    }, 600);
+      router.refresh();
+      setSaved(true);
+      setTimeout(() => {
+        onSaved();
+        onClose();
+      }, 600);
+    } catch (err) {
+      console.error("[Supabase logMeal Error]:", err);
+    }
   };
 
   return (
