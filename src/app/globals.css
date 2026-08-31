@@ -64,6 +64,10 @@
   box-sizing: border-box;
 }
 
+img, svg, video, canvas, iframe {
+  max-width: 100%;
+}
+
 html {
   scroll-behavior: smooth;
   overscroll-behavior-y: none;
