@@ -116,7 +116,7 @@ function DashboardView({
       initial="hidden"
       animate="show"
       exit="exit"
-      className="flex flex-col gap-6 w-full max-w-full overflow-x-hidden"
+      className="flex flex-col gap-8 sm:gap-10 w-full max-w-full overflow-x-hidden pb-32 lg:pb-16"
     >
       {/* Hero Sync Ring HUD */}
       <motion.section variants={itemVariants} className="flex flex-col items-center justify-center py-4 relative">
@@ -1076,8 +1076,8 @@ export default function Home() {
         onOpenSearch={() => setShowCommandPalette(true)}
       />
 
-      {/* Main Content Area — Safe Mobile Padding (pb-36 lg:pb-12) */}
-      <main className="pt-20 sm:pt-24 px-4 sm:px-8 pb-36 lg:pb-12 max-w-[1440px] lg:ml-72 w-full overflow-x-hidden">
+      {/* Main Content Area — Aggressive Whitespace Padding */}
+      <main className="pt-24 sm:pt-28 px-6 sm:px-12 pb-36 lg:pb-16 max-w-[1440px] lg:ml-72 w-full overflow-x-hidden">
         <motion.div drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.15} onDragEnd={handleDragEnd} className="touch-pan-y w-full">
           <AnimatePresence mode="wait">
             <motion.div

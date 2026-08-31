@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 interface MetricTileProps {
   icon: string;
   label: string;
@@ -11,9 +13,9 @@ interface MetricTileProps {
 }
 
 const accentColors = {
-  cyan:   { text: "#4cd7f6", bg: "rgba(76,215,246,0.1)",  border: "rgba(76,215,246,0.2)"  },
-  orange: { text: "#ffb690", bg: "rgba(236,106,6,0.1)",   border: "rgba(236,106,6,0.2)"   },
-  violet: { text: "#d0bcff", bg: "rgba(179,149,255,0.1)", border: "rgba(179,149,255,0.2)" },
+  cyan: { text: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20" },
+  orange: { text: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+  violet: { text: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20" },
 };
 
 export default function MetricTile({
@@ -28,48 +30,34 @@ export default function MetricTile({
   const c = accentColors[accent];
 
   return (
-    <div
-      className="glass-card p-4 flex flex-col gap-2 hover:scale-[1.02] transition-transform duration-200"
-      style={{ borderTop: `1px solid ${c.border}` }}
+    <motion.div
+      whileHover={{ scale: 1.02, y: -2 }}
+      className="bg-[#0F172A]/40 backdrop-blur-xl border border-white/[0.05] shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-6 rounded-2xl flex flex-col justify-between transition-all"
     >
-      <div className="flex items-center justify-between">
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-lg"
-          style={{ background: c.bg, border: `1px solid ${c.border}` }}
-        >
+      <div className="flex items-center justify-between mb-3">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base ${c.bg} border ${c.border}`}>
           {icon}
         </div>
         {delta && (
-          <span
-            className="label-caps text-xs"
-            style={{ color: deltaUp ? "#4ade80" : "#f87171" }}
-          >
+          <span className={`text-[10px] font-mono font-bold ${deltaUp ? "text-emerald-400" : "text-rose-400"}`}>
             {deltaUp ? "↑" : "↓"} {delta}
           </span>
         )}
       </div>
 
       <div>
-        <div className="flex items-baseline gap-1">
-          <span
-            style={{
-              fontFamily: "'Inter', sans-serif",
-              fontSize: 28,
-              fontWeight: 700,
-              lineHeight: 1,
-              color: c.text,
-            }}
-          >
+        <div className="flex items-baseline gap-1.5">
+          <span className={`text-3xl font-extrabold tracking-tight text-white`}>
             {value}
           </span>
           {unit && (
-            <span className="text-sm" style={{ color: "#869397" }}>
+            <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">
               {unit}
             </span>
           )}
         </div>
-        <p className="text-xs mt-1" style={{ color: "#bcc9cd" }}>{label}</p>
+        <p className="text-xs text-slate-500 font-medium mt-1">{label}</p>
       </div>
-    </div>
+    </motion.div>
   );
 }
