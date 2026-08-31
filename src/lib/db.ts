@@ -1,4 +1,4 @@
-// ─── LifeSync OS — Dynamic Data Engine with Real-Time Recovery Calculation ─────
+// ─── LifeSync OS — Zero-State Clean Data Engine with Supabase User Scoping ─────
 import { supabase } from "./supabase";
 import type {
   HealthMetric,
@@ -16,219 +16,67 @@ export const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
+// Zero-State Initial Baseline Configurations for Brand New User
 const INITIAL_HEALTH_METRICS: HealthMetric = {
   id: "hm-initial-1",
   user_id: DEMO_USER_ID,
   recorded_at: new Date().toISOString(),
-  heart_rate: 64,
-  steps: 8420,
-  hydration_pct: 70,
-  spo2: 99,
+  heart_rate: 70,
+  steps: 0,
+  hydration_pct: 0,
+  spo2: 98,
   body_temp: 36.6,
-  hrv_ms: 72,
-  stress_pct: 22,
-  vo2_max: 52,
-  calories_burned: 2150,
-  recovery_score: 88,
+  hrv_ms: 65,
+  stress_pct: 15,
+  vo2_max: 45,
+  calories_burned: 0,
+  recovery_score: 80,
   created_at: new Date().toISOString(),
 };
 
-const INITIAL_WORKOUTS: Workout[] = [
-  {
-    id: "w-1",
-    user_id: DEMO_USER_ID,
-    name: "Morning Interval Run",
-    type: "run",
-    duration_min: 45,
-    calories: 480,
-    avg_heart_rate: 154,
-    distance_km: 7.2,
-    notes: "Pacing felt smooth. Pushed hard on final 1km hill climb.",
-    workout_date: todayStr(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "w-2",
-    user_id: DEMO_USER_ID,
-    name: "Upper Body Hypertrophy",
-    type: "strength",
-    duration_min: 60,
-    calories: 390,
-    avg_heart_rate: 128,
-    distance_km: null,
-    notes: "Bench press 4x8 @ 85kg. Cable flyes finisher.",
-    workout_date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: "w-3",
-    user_id: DEMO_USER_ID,
-    name: "HIIT Conditioning",
-    type: "hiit",
-    duration_min: 30,
-    calories: 320,
-    avg_heart_rate: 165,
-    distance_km: null,
-    notes: "Kettlebell swings & burpee sprints 40s work / 20s rest.",
-    workout_date: new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
-    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-];
-
-const INITIAL_STUDY_SESSIONS: StudySession[] = [
-  {
-    id: "st-1",
-    user_id: DEMO_USER_ID,
-    subject: "Distributed Systems Architecture",
-    duration_min: 90,
-    focus_score: 95,
-    session_date: todayStr(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "st-2",
-    user_id: DEMO_USER_ID,
-    subject: "Machine Learning & Neural Networks",
-    duration_min: 60,
-    focus_score: 88,
-    session_date: todayStr(),
-    created_at: new Date().toISOString(),
-  },
-];
+const INITIAL_WORKOUTS: Workout[] = [];
+const INITIAL_STUDY_SESSIONS: StudySession[] = [];
 
 const INITIAL_MOOD_LOG: MoodLog = {
-  id: "ml-1",
+  id: "ml-initial",
   user_id: DEMO_USER_ID,
-  score: 5,
-  energy_pct: 90,
-  anxiety_pct: 12,
-  motivation_pct: 95,
+  score: 3,
+  energy_pct: 50,
+  anxiety_pct: 20,
+  motivation_pct: 50,
   logged_at: new Date().toISOString(),
   created_at: new Date().toISOString(),
 };
 
 const INITIAL_SLEEP_LOG: SleepLog = {
-  id: "sl-1",
+  id: "sl-initial",
   user_id: DEMO_USER_ID,
-  hours: 7.8,
-  deep_pct: 24,
-  rem_pct: 22,
-  light_pct: 46,
-  awake_pct: 8,
+  hours: 0,
+  deep_pct: 0,
+  rem_pct: 0,
+  light_pct: 0,
+  awake_pct: 0,
   sleep_date: todayStr(),
   created_at: new Date().toISOString(),
 };
 
-const INITIAL_GOALS: Goal[] = [
-  {
-    id: "g-1",
-    user_id: DEMO_USER_ID,
-    title: "Sub-45m 10K Run",
-    category: "Fitness",
-    icon: "🏃",
-    progress: 75,
-    target_description: "Target pace: 4:30 min/km",
-    detail: "Current 10K PR: 47:15 (Target date: Q4)",
-    accent: "#ec6a06",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "g-2",
-    user_id: DEMO_USER_ID,
-    title: "100 Hours Deep Focus",
-    category: "Learning",
-    icon: "🧠",
-    progress: 60,
-    target_description: "Focus on AI & System Design",
-    detail: "60 hours completed out of 100",
-    accent: "#4cd7f6",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "g-3",
-    user_id: DEMO_USER_ID,
-    title: "Optimize Recovery HRV > 80ms",
-    category: "Health",
-    icon: "❤️‍🔥",
-    progress: 85,
-    target_description: "Consistent 8h Sleep + Cold Plunge",
-    detail: "7-day avg HRV currently 72ms",
-    accent: "#b395ff",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
-const INITIAL_HABITS: Habit[] = [
-  {
-    id: "h-1",
-    title: "Morning Hydration (500ml)",
-    category: "health",
-    streak: 14,
-    completedToday: true,
-    frequency: "Daily",
-    targetCount: 1,
-    icon: "water_drop",
-  },
-  {
-    id: "h-2",
-    title: "10,000 Daily Steps",
-    category: "fitness",
-    streak: 8,
-    completedToday: false,
-    frequency: "Daily",
-    targetCount: 10000,
-    icon: "directions_walk",
-  },
-  {
-    id: "h-3",
-    title: "Deep Work Block (50m)",
-    category: "focus",
-    streak: 21,
-    completedToday: true,
-    frequency: "Daily",
-    targetCount: 2,
-    icon: "psychology",
-  },
-];
+const INITIAL_GOALS: Goal[] = [];
+const INITIAL_HABITS: Habit[] = [];
 
 const INITIAL_HYDRATION: HydrationLog = {
-  amountMl: 1750,
+  amountMl: 0,
   targetMl: 2500,
   lastUpdated: new Date().toISOString(),
 };
 
-const INITIAL_MEALS: MealLog[] = [
-  {
-    id: "m-1",
-    name: "Avocado & Poached Eggs Toast",
-    mealType: "breakfast",
-    calories: 450,
-    proteinG: 24,
-    carbsG: 38,
-    fatsG: 22,
-    loggedAt: new Date().toISOString(),
-  },
-  {
-    id: "m-2",
-    name: "Grilled Chicken & Quinoa Bowl",
-    mealType: "lunch",
-    calories: 620,
-    proteinG: 52,
-    carbsG: 60,
-    fatsG: 16,
-    loggedAt: new Date().toISOString(),
-  },
-];
+const INITIAL_MEALS: MealLog[] = [];
 
 // Helper to calculate Recovery Score dynamically
 function calculateDynamicRecovery(metrics: HealthMetric, sleep: SleepLog | null): number {
-  const sleepHrs = sleep?.hours ?? 7.8;
-  const hydrationPct = metrics.hydration_pct ?? 70;
-  const hrv = metrics.hrv_ms ?? 72;
-  const stress = metrics.stress_pct ?? 22;
+  const sleepHrs = sleep?.hours ?? 0;
+  const hydrationPct = metrics.hydration_pct ?? 0;
+  const hrv = metrics.hrv_ms ?? 65;
+  const stress = metrics.stress_pct ?? 15;
 
   const score =
     (sleepHrs / 8) * 35 +
@@ -236,7 +84,7 @@ function calculateDynamicRecovery(metrics: HealthMetric, sleep: SleepLog | null)
     (Math.min(hrv, 100) / 100) * 25 +
     ((100 - stress) / 100) * 15;
 
-  return Math.min(100, Math.max(35, Math.round(score)));
+  return Math.min(100, Math.max(20, Math.round(score)));
 }
 
 function notifyUpdate() {
@@ -268,16 +116,27 @@ function setLocal<T>(key: string, value: T): T {
   return value;
 }
 
+export async function getActiveUserId(): Promise<string> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) return user.id;
+  } catch {
+    // Fallback if not authenticated yet
+  }
+  return DEMO_USER_ID;
+}
+
 // ─────────────────────────────────────────────────────────
 // HEALTH METRICS
 // ─────────────────────────────────────────────────────────
 
 export async function getLatestHealthMetrics(): Promise<HealthMetric | null> {
+  const userId = await getActiveUserId();
   try {
     const { data, error } = await supabase
       .from("health_metrics")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", userId)
       .order("recorded_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -293,6 +152,7 @@ export async function getLatestHealthMetrics(): Promise<HealthMetric | null> {
 }
 
 export async function getHealthMetricHistory(days = 7): Promise<HealthMetric[]> {
+  const userId = await getActiveUserId();
   try {
     const since = new Date();
     since.setDate(since.getDate() - days);
@@ -300,7 +160,7 @@ export async function getHealthMetricHistory(days = 7): Promise<HealthMetric[]> 
     const { data, error } = await supabase
       .from("health_metrics")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", userId)
       .gte("recorded_at", since.toISOString())
       .order("recorded_at", { ascending: true });
 
@@ -315,6 +175,7 @@ export async function getHealthMetricHistory(days = 7): Promise<HealthMetric[]> 
 export async function upsertHealthMetrics(
   metrics: Partial<HealthMetric>
 ): Promise<HealthMetric | null> {
+  const userId = await getActiveUserId();
   const current = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
   const sleep = getLocal("sleep_log", INITIAL_SLEEP_LOG);
   const tempUpdated: HealthMetric = { ...current, ...metrics };
@@ -330,7 +191,7 @@ export async function upsertHealthMetrics(
   try {
     const { data, error } = await supabase
       .from("health_metrics")
-      .insert({ ...updated, user_id: DEMO_USER_ID } as unknown as never)
+      .insert({ ...updated, user_id: userId } as unknown as never)
       .select()
       .single();
 
@@ -346,11 +207,12 @@ export async function upsertHealthMetrics(
 // ─────────────────────────────────────────────────────────
 
 export async function getRecentWorkouts(limit = 10): Promise<Workout[]> {
+  const userId = await getActiveUserId();
   try {
     const { data, error } = await supabase
       .from("workouts")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", userId)
       .order("workout_date", { ascending: false })
       .limit(limit);
 
@@ -399,10 +261,11 @@ export async function getWeeklyWorkoutStats(): Promise<{
 export async function logWorkout(
   workout: Omit<Workout, "id" | "user_id" | "created_at">
 ): Promise<Workout | null> {
+  const userId = await getActiveUserId();
   const newWorkout: Workout = {
     ...workout,
     id: `w-local-${Date.now()}`,
-    user_id: DEMO_USER_ID,
+    user_id: userId,
     created_at: new Date().toISOString(),
   };
 
@@ -411,13 +274,13 @@ export async function logWorkout(
 
   // Update calories in health_metrics
   const currentMetrics = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
-  const updatedBurn = (currentMetrics.calories_burned ?? 2000) + workout.calories;
+  const updatedBurn = (currentMetrics.calories_burned ?? 0) + workout.calories;
   await upsertHealthMetrics({ calories_burned: updatedBurn });
 
   try {
     const { data, error } = await supabase
       .from("workouts")
-      .insert({ ...workout, user_id: DEMO_USER_ID } as unknown as never)
+      .insert({ ...workout, user_id: userId } as unknown as never)
       .select()
       .single();
 
@@ -440,12 +303,13 @@ export interface StudyStats {
 }
 
 export async function getStudyStats(): Promise<StudyStats> {
+  const userId = await getActiveUserId();
   let sessions: StudySession[] = [];
   try {
     const { data, error } = await supabase
       .from("study_sessions")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", userId)
       .order("session_date", { ascending: true });
 
     if (!error && data && data.length > 0) sessions = data as StudySession[];
@@ -487,7 +351,7 @@ export async function getStudyStats(): Promise<StudyStats> {
 
   return {
     todayMinutes,
-    streakDays: Math.max(streak, 14),
+    streakDays: streak,
     totalSessions: sessions.length,
     heatmapData: heatmap,
   };
@@ -496,10 +360,11 @@ export async function getStudyStats(): Promise<StudyStats> {
 export async function logStudySession(
   session: Omit<StudySession, "id" | "user_id" | "created_at">
 ): Promise<StudySession | null> {
+  const userId = await getActiveUserId();
   const newSession: StudySession = {
     ...session,
     id: `st-local-${Date.now()}`,
-    user_id: DEMO_USER_ID,
+    user_id: userId,
     created_at: new Date().toISOString(),
   };
 
@@ -509,7 +374,7 @@ export async function logStudySession(
   try {
     const { data, error } = await supabase
       .from("study_sessions")
-      .insert({ ...session, user_id: DEMO_USER_ID } as unknown as never)
+      .insert({ ...session, user_id: userId } as unknown as never)
       .select()
       .single();
 
@@ -525,11 +390,12 @@ export async function logStudySession(
 // ─────────────────────────────────────────────────────────
 
 export async function getLatestMood(): Promise<MoodLog | null> {
+  const userId = await getActiveUserId();
   try {
     const { data, error } = await supabase
       .from("mood_logs")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", userId)
       .order("logged_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -545,9 +411,10 @@ export async function logMood(
   score: number,
   extras?: { energy_pct?: number; anxiety_pct?: number; motivation_pct?: number }
 ): Promise<MoodLog | null> {
+  const userId = await getActiveUserId();
   const newMood: MoodLog = {
     id: `ml-local-${Date.now()}`,
-    user_id: DEMO_USER_ID,
+    user_id: userId,
     score,
     energy_pct: extras?.energy_pct ?? 85,
     anxiety_pct: extras?.anxiety_pct ?? 15,
@@ -561,7 +428,7 @@ export async function logMood(
   try {
     const { data, error } = await supabase
       .from("mood_logs")
-      .insert({ user_id: DEMO_USER_ID, score, logged_at: new Date().toISOString(), ...extras } as unknown as never)
+      .insert({ user_id: userId, score, logged_at: new Date().toISOString(), ...extras } as unknown as never)
       .select()
       .single();
 
@@ -573,11 +440,12 @@ export async function logMood(
 }
 
 export async function getLatestSleep(): Promise<SleepLog | null> {
+  const userId = await getActiveUserId();
   try {
     const { data, error } = await supabase
       .from("sleep_logs")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", userId)
       .order("sleep_date", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -592,10 +460,11 @@ export async function getLatestSleep(): Promise<SleepLog | null> {
 export async function logSleep(
   sleep: Omit<SleepLog, "id" | "user_id" | "created_at">
 ): Promise<SleepLog | null> {
+  const userId = await getActiveUserId();
   const newSleep: SleepLog = {
     ...sleep,
     id: `sl-local-${Date.now()}`,
-    user_id: DEMO_USER_ID,
+    user_id: userId,
     created_at: new Date().toISOString(),
   };
 
@@ -609,7 +478,7 @@ export async function logSleep(
   try {
     const { data, error } = await supabase
       .from("sleep_logs")
-      .insert({ ...sleep, user_id: DEMO_USER_ID } as unknown as never)
+      .insert({ ...sleep, user_id: userId } as unknown as never)
       .select()
       .single();
 
@@ -621,6 +490,7 @@ export async function logSleep(
 }
 
 export async function getWeeklySleep(): Promise<SleepLog[]> {
+  const userId = await getActiveUserId();
   try {
     const since = new Date();
     since.setDate(since.getDate() - 7);
@@ -628,7 +498,7 @@ export async function getWeeklySleep(): Promise<SleepLog[]> {
     const { data, error } = await supabase
       .from("sleep_logs")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", userId)
       .gte("sleep_date", since.toISOString().split("T")[0])
       .order("sleep_date", { ascending: true });
 
@@ -644,11 +514,12 @@ export async function getWeeklySleep(): Promise<SleepLog[]> {
 // ─────────────────────────────────────────────────────────
 
 export async function getGoals(): Promise<Goal[]> {
+  const userId = await getActiveUserId();
   try {
     const { data, error } = await supabase
       .from("goals")
       .select("*")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", userId)
       .order("created_at", { ascending: true });
 
     if (!error && data && data.length > 0) return data as Goal[];
@@ -662,6 +533,7 @@ export async function updateGoalProgress(
   goalId: string,
   progress: number
 ): Promise<Goal | null> {
+  const userId = await getActiveUserId();
   const current = getLocal("goals", INITIAL_GOALS);
   const updatedList = current.map((g) =>
     g.id === goalId ? { ...g, progress, updated_at: new Date().toISOString() } : g
@@ -674,7 +546,7 @@ export async function updateGoalProgress(
       .from("goals")
       .update({ progress, updated_at: new Date().toISOString() } as unknown as never)
       .eq("id", goalId)
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", userId)
       .select()
       .single();
 
@@ -688,10 +560,11 @@ export async function updateGoalProgress(
 export async function createGoal(
   goal: Omit<Goal, "id" | "user_id" | "created_at" | "updated_at">
 ): Promise<Goal | null> {
+  const userId = await getActiveUserId();
   const newGoal: Goal = {
     ...goal,
     id: `g-local-${Date.now()}`,
-    user_id: DEMO_USER_ID,
+    user_id: userId,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -702,7 +575,7 @@ export async function createGoal(
   try {
     const { data, error } = await supabase
       .from("goals")
-      .insert({ ...goal, user_id: DEMO_USER_ID } as unknown as never)
+      .insert({ ...goal, user_id: userId } as unknown as never)
       .select()
       .single();
 
@@ -807,16 +680,21 @@ export function exportAllDataJSON(): string {
   return JSON.stringify(data, null, 2);
 }
 
+export function resetAllDataToDefault() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("lifesync_health_metrics");
+    localStorage.removeItem("lifesync_workouts");
+    localStorage.removeItem("lifesync_study_sessions");
+    localStorage.removeItem("lifesync_mood_log");
+    localStorage.removeItem("lifesync_sleep_log");
+    localStorage.removeItem("lifesync_goals");
+    localStorage.removeItem("lifesync_habits");
+    localStorage.removeItem("lifesync_hydration");
+    localStorage.removeItem("lifesync_meals");
+    notifyUpdate();
+  }
+}
+
 export function resetBaselineData() {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("lifesync_health_metrics", JSON.stringify(INITIAL_HEALTH_METRICS));
-  localStorage.setItem("lifesync_workouts", JSON.stringify(INITIAL_WORKOUTS));
-  localStorage.setItem("lifesync_study_sessions", JSON.stringify(INITIAL_STUDY_SESSIONS));
-  localStorage.setItem("lifesync_mood_log", JSON.stringify(INITIAL_MOOD_LOG));
-  localStorage.setItem("lifesync_sleep_log", JSON.stringify(INITIAL_SLEEP_LOG));
-  localStorage.setItem("lifesync_goals", JSON.stringify(INITIAL_GOALS));
-  localStorage.setItem("lifesync_habits", JSON.stringify(INITIAL_HABITS));
-  localStorage.setItem("lifesync_hydration", JSON.stringify(INITIAL_HYDRATION));
-  localStorage.setItem("lifesync_meals", JSON.stringify(INITIAL_MEALS));
-  notifyUpdate();
+  resetAllDataToDefault();
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence, PanInfo, type Variants } from "framer-motion";
 import Header from "@/components/Header";
+import EmptyState from "@/components/EmptyState";
 import LogWorkoutModal from "@/components/LogWorkoutModal";
 import LogStudyModal from "@/components/LogStudyModal";
 import LogSleepModal from "@/components/LogSleepModal";
@@ -395,11 +396,21 @@ function FitnessView({ onOpenWorkoutModal }: { onOpenWorkoutModal: () => void })
               Workout Logs
             </h3>
 
-            <ul className="space-y-3">
-              {wLoading ? (
-                [0, 1, 2].map((idx) => <SkeletonCard key={`skel-fit-${idx}`} />)
-              ) : (
-                workouts.map((w) => (
+            {wLoading ? (
+              <div className="space-y-3">
+                {[0, 1, 2].map((idx) => <SkeletonCard key={`skel-fit-${idx}`} />)}
+              </div>
+            ) : workouts.length === 0 ? (
+              <EmptyState
+                icon="fitness_center"
+                title="No Workouts Logged Yet"
+                description="Your athletic journey starts here. Generate an AI workout or log a manual session to track performance."
+                actionLabel="Log First Workout"
+                onAction={onOpenWorkoutModal}
+              />
+            ) : (
+              <ul className="space-y-3">
+                {workouts.map((w) => (
                   <motion.li key={w.id} className="flex items-center gap-4 p-3.5 rounded-xl bg-surface-container-low/80 border border-white/5">
                     <div className="w-10 h-10 rounded-full bg-secondary/15 flex items-center justify-center border border-secondary/30 text-secondary shrink-0">
                       <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -414,9 +425,9 @@ function FitnessView({ onOpenWorkoutModal }: { onOpenWorkoutModal: () => void })
                     </div>
                     <span className="text-sm font-extrabold text-secondary">{w.calories} kcal</span>
                   </motion.li>
-                ))
-              )}
-            </ul>
+                ))}
+              </ul>
+            )}
           </motion.section>
         </div>
 
@@ -677,34 +688,44 @@ function NutritionView({ onOpenNutritionModal }: { onOpenNutritionModal: () => v
           {/* Staggered Logged Meals List */}
           <div className="space-y-2.5 mt-4 pt-4 border-t border-white/10">
             <h4 className="font-mono text-[10px] uppercase tracking-widest text-slate-400">Logged Meals</h4>
-            <motion.div
-              variants={{
-                hidden: { opacity: 0 },
-                show: { opacity: 1, transition: { staggerChildren: 0.08 } },
-              }}
-              initial="hidden"
-              animate="show"
-              className="space-y-2 max-h-48 overflow-y-auto pr-1"
-            >
-              {meals.map((m) => (
-                <motion.div
-                  key={m.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 8 },
-                    show: { opacity: 1, y: 0 },
-                  }}
-                  className="flex justify-between items-center p-3 rounded-xl bg-slate-900/60 border border-white/5 text-xs hover:border-white/20 transition"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-white capitalize text-xs sm:text-sm">{m.name}</span>
-                    <span className="text-[10px] text-slate-400 font-mono uppercase bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                      {m.mealType}
-                    </span>
-                  </div>
-                  <span className="font-mono font-extrabold text-secondary text-xs">{m.calories} kcal</span>
-                </motion.div>
-              ))}
-            </motion.div>
+            {meals.length === 0 ? (
+              <EmptyState
+                icon="restaurant"
+                title="No Meals Logged Today"
+                description="Fuel your body with intention. Log your meals to track calories, protein, carbs, and fats."
+                actionLabel="Log First Meal"
+                onAction={onOpenNutritionModal}
+              />
+            ) : (
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+                }}
+                initial="hidden"
+                animate="show"
+                className="space-y-2 max-h-48 overflow-y-auto pr-1"
+              >
+                {meals.map((m) => (
+                  <motion.div
+                    key={m.id}
+                    variants={{
+                      hidden: { opacity: 0, y: 8 },
+                      show: { opacity: 1, y: 0 },
+                    }}
+                    className="flex justify-between items-center p-3 rounded-xl bg-slate-900/60 border border-white/5 text-xs hover:border-white/20 transition"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white capitalize text-xs sm:text-sm">{m.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono uppercase bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                        {m.mealType}
+                      </span>
+                    </div>
+                    <span className="font-mono font-extrabold text-secondary text-xs">{m.calories} kcal</span>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
           </div>
         </div>
       </div>
@@ -730,72 +751,82 @@ function GoalsView({
   };
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-6 w-full">
+    <motion.div variants={containerVariants} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-6 w-full pb-32 lg:pb-12">
       <motion.div variants={itemVariants} className="flex justify-between items-end">
         <div>
           <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">Milestones & Strategic Goals</h2>
-          <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Track core objectives and key achievements.</p>
+          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">Track core objectives and key achievements.</p>
         </div>
-        <button
+        <motion.button
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.95 }}
           onClick={onOpenGoalModal}
-          className="px-4 py-2.5 rounded-xl bg-primary text-slate-950 font-bold text-xs shadow-[0_0_20px_rgba(76,215,246,0.4)] hover:bg-primary/90 transition cursor-pointer"
+          className="px-4 py-2.5 rounded-xl bg-primary text-slate-950 font-extrabold text-xs shadow-[0_0_20px_rgba(76,215,246,0.4)] hover:bg-primary/90 transition cursor-pointer"
         >
           + New Goal
-        </button>
+        </motion.button>
       </motion.div>
 
-      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        <AnimatePresence mode="popLayout">
-          {loading ? (
-            [0, 1, 2].map((idx) => <SkeletonCard key={`skel-g-${idx}`} />)
-          ) : goals.length === 0 ? (
-            <p className="col-span-full text-xs text-center py-12 text-on-surface-variant">No goals found. Click &quot;+ New Goal&quot; to start tracking!</p>
-          ) : (
-            goals.map((g) => (
-              <motion.li
-                key={g.id}
-                variants={itemVariants}
-                className="glass-panel p-5 rounded-2xl flex flex-col gap-4 shadow-xl"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-xl shrink-0">
-                      {g.icon}
+      {goals.length === 0 && !loading ? (
+        <EmptyState
+          icon="flag"
+          title="No Active Strategic Goals"
+          description="Define your high-level milestones in health, learning, or fitness to stay focused on long-term achievement."
+          actionLabel="Create First Goal"
+          onAction={onOpenGoalModal}
+        />
+      ) : (
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <AnimatePresence mode="popLayout">
+            {loading ? (
+              [0, 1, 2].map((idx) => <SkeletonCard key={`skel-g-${idx}`} />)
+            ) : (
+              goals.map((g) => (
+                <motion.li
+                  key={g.id}
+                  variants={itemVariants}
+                  className="glass-panel p-5 rounded-2xl flex flex-col gap-4 shadow-xl"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-xl shrink-0">
+                        {g.icon}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm sm:text-base text-white">{g.title}</h3>
+                        <p className="text-[10px] text-primary font-mono uppercase">{g.category}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-sm sm:text-base text-white">{g.title}</h3>
-                      <p className="text-[10px] text-primary font-mono uppercase">{g.category}</p>
-                    </div>
+                    <span className="text-lg font-extrabold text-primary shrink-0">{g.progress}%</span>
                   </div>
-                  <span className="text-lg font-extrabold text-primary shrink-0">{g.progress}%</span>
-                </div>
 
-                <div className="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
-                  <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: `${g.progress}%` }} />
-                </div>
+                  <div className="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+                    <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: `${g.progress}%` }} />
+                  </div>
 
-                <div className="flex justify-between items-center text-[11px] text-on-surface-variant">
-                  <span>{g.target_description}</span>
-                  <span>{g.detail}</span>
-                </div>
+                  <div className="flex justify-between items-center text-[11px] text-on-surface-variant">
+                    <span>{g.target_description}</span>
+                    <span>{g.detail}</span>
+                  </div>
 
-                <div className="flex gap-2 pt-2 border-t border-white/5">
-                  {[+5, +10].map((delta) => (
-                    <button
-                      key={delta}
-                      disabled={updating === g.id || g.progress >= 100}
-                      onClick={() => handleUpdate(g.id, Math.min(g.progress + delta, 100), g.title)}
-                      className="flex-1 text-xs py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary font-semibold hover:bg-primary/20 transition active:scale-95 disabled:opacity-50 cursor-pointer"
-                    >
-                      +{delta}% Progress
-                    </button>
-                  ))}
-                </div>
-              </motion.li>
-            ))
-          )}
-        </AnimatePresence>
-      </ul>
+                  <div className="flex gap-2 pt-2 border-t border-white/5">
+                    {[+5, +10].map((delta) => (
+                      <button
+                        key={delta}
+                        disabled={updating === g.id || g.progress >= 100}
+                        onClick={() => handleUpdate(g.id, Math.min(g.progress + delta, 100), g.title)}
+                        className="flex-1 text-xs py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary font-semibold hover:bg-primary/20 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                      >
+                        +{delta}% Progress
+                      </button>
+                    ))}
+                  </div>
+                </motion.li>
+              ))
+            )}
+          </AnimatePresence>
+        </ul>
+      )}
     </motion.div>
   );
 }

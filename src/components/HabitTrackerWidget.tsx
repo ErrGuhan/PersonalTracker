@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHabits } from "@/hooks/useSupabase";
 import { Check, Plus, Flame, Sparkles } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 
 export default function HabitTrackerWidget() {
   const { habits, toggleHabit, addHabit } = useHabits();
@@ -124,65 +125,75 @@ export default function HabitTrackerWidget() {
         )}
       </AnimatePresence>
 
-      {/* Staggered Habit Checklist */}
-      <motion.ul
-        variants={{
-          hidden: { opacity: 0 },
-          show: { opacity: 1, transition: { staggerChildren: 0.08 } },
-        }}
-        initial="hidden"
-        animate="show"
-        className="space-y-3"
-      >
-        {habits.map((habit) => (
-          <motion.li
-            key={habit.id}
-            variants={{
-              hidden: { opacity: 0, y: 10 },
-              show: { opacity: 1, y: 0 },
-            }}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => toggleHabit(habit.id)}
-            className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
-              habit.completedToday
-                ? "bg-cyan-500/10 border-cyan-500/40 text-slate-400"
-                : "bg-slate-900/60 border-white/5 text-white hover:border-white/20"
-            }`}
-          >
-            <div className="flex items-center gap-3.5 min-w-0">
-              {/* Checkbox circle filled with glowing cyan accent on completion */}
-              <div
-                className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs transition-all duration-300 shrink-0 ${
-                  habit.completedToday
-                    ? "bg-cyan-400 border-cyan-400 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.8)]"
-                    : "border-white/30 text-transparent hover:border-cyan-400"
-                }`}
-              >
-                <Check className="w-3.5 h-3.5 stroke-[3]" />
-              </div>
-
-              <div className="min-w-0">
-                <p
-                  className={`text-xs sm:text-sm font-bold transition-all ${
-                    habit.completedToday ? "line-through text-slate-500" : "text-white"
+      {/* Zero-Data Empty State or Staggered Habit Checklist */}
+      {habits.length === 0 ? (
+        <EmptyState
+          icon={Sparkles}
+          title="Your Journey Starts Here"
+          description="Build compounding streak momentum by tracking your first daily health, fitness, or focus habit."
+          actionLabel="Create First Habit"
+          onAction={() => setShowAddForm(true)}
+        />
+      ) : (
+        <motion.ul
+          variants={{
+            hidden: { opacity: 0 },
+            show: { opacity: 1, transition: { staggerChildren: 0.08 } },
+          }}
+          initial="hidden"
+          animate="show"
+          className="space-y-3"
+        >
+          {habits.map((habit) => (
+            <motion.li
+              key={habit.id}
+              variants={{
+                hidden: { opacity: 0, y: 10 },
+                show: { opacity: 1, y: 0 },
+              }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => toggleHabit(habit.id)}
+              className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
+                habit.completedToday
+                  ? "bg-cyan-500/10 border-cyan-500/40 text-slate-400"
+                  : "bg-slate-900/60 border-white/5 text-white hover:border-white/20"
+              }`}
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                {/* Checkbox circle filled with glowing cyan accent on completion */}
+                <div
+                  className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs transition-all duration-300 shrink-0 ${
+                    habit.completedToday
+                      ? "bg-cyan-400 border-cyan-400 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.8)]"
+                      : "border-white/30 text-transparent hover:border-cyan-400"
                   }`}
                 >
-                  {habit.title}
-                </p>
-                <div className="flex items-center gap-2 text-[10px] font-mono mt-0.5">
-                  <span className="uppercase tracking-widest text-cyan-400 font-semibold">{habit.category}</span>
-                  <span className="text-slate-600">·</span>
-                  <span className="flex items-center gap-1 text-slate-400">
-                    <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
-                    {habit.streak} day streak
-                  </span>
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                </div>
+
+                <div className="min-w-0">
+                  <p
+                    className={`text-xs sm:text-sm font-bold transition-all ${
+                      habit.completedToday ? "line-through text-slate-500" : "text-white"
+                    }`}
+                  >
+                    {habit.title}
+                  </p>
+                  <div className="flex items-center gap-2 text-[10px] font-mono mt-0.5">
+                    <span className="uppercase tracking-widest text-cyan-400 font-semibold">{habit.category}</span>
+                    <span className="text-slate-600">·</span>
+                    <span className="flex items-center gap-1 text-slate-400">
+                      <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
+                      {habit.streak} day streak
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.li>
-        ))}
-      </motion.ul>
+            </motion.li>
+          ))}
+        </motion.ul>
+      )}
     </div>
   );
 }
