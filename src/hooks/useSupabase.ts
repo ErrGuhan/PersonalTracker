@@ -21,10 +21,14 @@ import {
   getHabits,
   toggleHabit as toggleHabitDb,
   addHabit as addHabitDb,
+  updateHabit as updateHabitDb,
+  deleteHabit as deleteHabitDb,
   getHydration,
   addWater as addWaterDb,
   getMeals,
   logMeal as logMealDb,
+  updateMeal as updateMealDb,
+  deleteMeal as deleteMealDb,
   upsertHealthMetrics,
   DEMO_USER_ID,
   type StudyStats,
@@ -311,7 +315,17 @@ export function useHabits() {
     setHabits(updated);
   };
 
-  return { habits, toggleHabit: toggle, addHabit: add, refetch: refresh };
+  const update = (id: string, updatedFields: Partial<Habit>) => {
+    const updated = updateHabitDb(id, updatedFields);
+    setHabits(updated);
+  };
+
+  const remove = (id: string) => {
+    const updated = deleteHabitDb(id);
+    setHabits(updated);
+  };
+
+  return { habits, toggleHabit: toggle, addHabit: add, updateHabit: update, deleteHabit: remove, refetch: refresh };
 }
 
 export function useHydration() {
@@ -367,6 +381,16 @@ export function useNutrition() {
     setMeals(updated);
   };
 
+  const updateMeal = (id: string, updatedFields: Partial<MealLog>) => {
+    const updated = updateMealDb(id, updatedFields);
+    setMeals(updated);
+  };
+
+  const deleteMeal = (id: string) => {
+    const updated = deleteMealDb(id);
+    setMeals(updated);
+  };
+
   const totalCalories = meals.reduce((s, m) => s + m.calories, 0);
   const totalProtein = meals.reduce((s, m) => s + m.proteinG, 0);
   const totalCarbs = meals.reduce((s, m) => s + m.carbsG, 0);
@@ -375,6 +399,8 @@ export function useNutrition() {
   return {
     meals,
     logMeal,
+    updateMeal,
+    deleteMeal,
     refetch: refresh,
     stats: { totalCalories, totalProtein, totalCarbs, totalFats },
   };

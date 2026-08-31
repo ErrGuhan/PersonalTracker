@@ -621,6 +621,18 @@ export function addHabit(newHabit: Omit<Habit, "id" | "streak" | "completedToday
   return setLocal("habits", [...current, habit]);
 }
 
+export function updateHabit(id: string, updatedFields: Partial<Habit>): Habit[] {
+  const current = getHabits();
+  const updated = current.map((h) => (h.id === id ? { ...h, ...updatedFields } : h));
+  return setLocal("habits", updated);
+}
+
+export function deleteHabit(id: string): Habit[] {
+  const current = getHabits();
+  const updated = current.filter((h) => h.id !== id);
+  return setLocal("habits", updated);
+}
+
 export function getHydration(): HydrationLog {
   return getLocal("hydration", INITIAL_HYDRATION);
 }
@@ -658,6 +670,18 @@ export function logMeal(meal: Omit<MealLog, "id" | "loggedAt">): MealLog[] {
   };
   const current = getMeals();
   return setLocal("meals", [newMeal, ...current]);
+}
+
+export function updateMeal(id: string, updatedFields: Partial<MealLog>): MealLog[] {
+  const current = getMeals();
+  const updated = current.map((m) => (m.id === id ? { ...m, ...updatedFields } : m));
+  return setLocal("meals", updated);
+}
+
+export function deleteMeal(id: string): MealLog[] {
+  const current = getMeals();
+  const updated = current.filter((m) => m.id !== id);
+  return setLocal("meals", updated);
 }
 
 // ─────────────────────────────────────────────────────────
