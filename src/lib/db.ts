@@ -21,16 +21,16 @@ const INITIAL_HEALTH_METRICS: HealthMetric = {
   id: "hm-initial-1",
   user_id: DEMO_USER_ID,
   recorded_at: new Date().toISOString(),
-  heart_rate: 70,
+  heart_rate: 0,
   steps: 0,
   hydration_pct: 0,
-  spo2: 98,
-  body_temp: 36.6,
-  hrv_ms: 65,
-  stress_pct: 15,
-  vo2_max: 45,
+  spo2: 0,
+  body_temp: 0,
+  hrv_ms: 0,
+  stress_pct: 0,
+  vo2_max: 0,
   calories_burned: 0,
-  recovery_score: 80,
+  recovery_score: 0,
   created_at: new Date().toISOString(),
 };
 
@@ -40,10 +40,10 @@ const INITIAL_STUDY_SESSIONS: StudySession[] = [];
 const INITIAL_MOOD_LOG: MoodLog = {
   id: "ml-initial",
   user_id: DEMO_USER_ID,
-  score: 3,
-  energy_pct: 50,
-  anxiety_pct: 20,
-  motivation_pct: 50,
+  score: 0,
+  energy_pct: 0,
+  anxiety_pct: 0,
+  motivation_pct: 0,
   logged_at: new Date().toISOString(),
   created_at: new Date().toISOString(),
 };
@@ -75,8 +75,12 @@ const INITIAL_MEALS: MealLog[] = [];
 function calculateDynamicRecovery(metrics: HealthMetric, sleep: SleepLog | null): number {
   const sleepHrs = sleep?.hours ?? 0;
   const hydrationPct = metrics.hydration_pct ?? 0;
-  const hrv = metrics.hrv_ms ?? 65;
-  const stress = metrics.stress_pct ?? 15;
+  const hrv = metrics.hrv_ms ?? 0;
+  const stress = metrics.stress_pct ?? 0;
+
+  if (sleepHrs === 0 && hydrationPct === 0 && hrv === 0 && (metrics.steps ?? 0) === 0 && (metrics.calories_burned ?? 0) === 0) {
+    return 0;
+  }
 
   const score =
     (sleepHrs / 8) * 35 +
@@ -84,7 +88,7 @@ function calculateDynamicRecovery(metrics: HealthMetric, sleep: SleepLog | null)
     (Math.min(hrv, 100) / 100) * 25 +
     ((100 - stress) / 100) * 15;
 
-  return Math.min(100, Math.max(20, Math.round(score)));
+  return Math.min(100, Math.max(0, Math.round(score)));
 }
 
 function notifyUpdate() {
@@ -506,7 +510,7 @@ export async function getWeeklySleep(): Promise<SleepLog[]> {
   } catch (err) {
     console.warn("[DB] weekly sleep fallback to local:", err);
   }
-  return [getLocal("sleep_log", INITIAL_SLEEP_LOG)];
+  return getLocal<SleepLog[]>("sleep_logs_list", []);
 }
 
 // ─────────────────────────────────────────────────────────
