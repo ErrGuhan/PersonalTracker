@@ -12,7 +12,8 @@ import type {
   MealLog,
 } from "./database.types";
 
-export const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
+export const PRIMARY_USER_EMAIL = "guhan24td0781@svcet.ac.in";
+export const DEMO_USER_ID = "guhan-24td0781-svcet-ac-in";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
