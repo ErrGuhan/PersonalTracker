@@ -1116,7 +1116,7 @@ export default function Home() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto pt-24 sm:pt-28 px-6 sm:px-12 pb-24 lg:pb-16 max-w-[1440px] lg:ml-72 w-full scroll-smooth">
+      <main className="flex-1 w-full overflow-y-auto overflow-x-hidden scroll-smooth pb-24 touch-pan-y relative pt-24 sm:pt-28 px-6 sm:px-12 max-w-[1440px] lg:ml-72">
         <motion.div
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}

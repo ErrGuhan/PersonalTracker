@@ -56,12 +56,10 @@ export default function RootLayout({
         />
         <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js" async defer />
       </head>
-      <body className={`${inter.className} bg-background text-on-background h-full font-body-md selection:bg-primary/30 relative`}>
+      <body className="flex flex-col h-[100dvh] w-full overflow-hidden bg-[#0B0F17] text-white antialiased">
         <AuthProvider>
           <PwaRegister />
-          <div className="flex flex-col h-[100dvh] w-full overflow-hidden">
-            {children}
-          </div>
+          {children}
         </AuthProvider>
       </body>
     </html>
