@@ -1,35 +1,39 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence, PanInfo, type Variants } from "framer-motion";
 import Header from "@/components/Header";
 import EmptyState from "@/components/EmptyState";
-import LogWorkoutModal from "@/components/LogWorkoutModal";
-import WorkoutDetailModal from "@/components/WorkoutDetailModal";
-import LogStudyModal from "@/components/LogStudyModal";
-import LogSleepModal from "@/components/LogSleepModal";
-import LogVitalsModal from "@/components/LogVitalsModal";
-import LogNutritionModal from "@/components/LogNutritionModal";
-import CreateGoalModal from "@/components/CreateGoalModal";
 import HabitTrackerWidget from "@/components/HabitTrackerWidget";
-import HabitHeatmap from "@/components/HabitHeatmap";
 import ProgressiveRings from "@/components/ProgressiveRings";
 import PredictiveHabitWidget from "@/components/PredictiveHabitWidget";
-import QuickStartTemplates from "@/components/QuickStartTemplates";
 import HeroTriad from "@/components/HeroTriad";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import HoldToCommitButton from "@/components/HoldToCommitButton";
 import CalendarCarousel from "@/components/CalendarCarousel";
-import InsightsEngine from "@/components/InsightsEngine";
-import ThemeSelector from "@/components/ThemeSelector";
-import HydrationWidget from "@/components/HydrationWidget";
-import CommandPalette from "@/components/CommandPalette";
-import ToastNotification from "@/components/ToastNotification";
-import AuthModal from "@/components/AuthModal";
-import StudyHeatmap from "@/components/StudyHeatmap";
-import MoodSelector from "@/components/MoodSelector";
-import FocusTimer from "@/components/FocusTimer";
-import SleepBar from "@/components/SleepBar";
+import { MetricCardSkeleton } from "@/components/Skeletons";
+
+// Dynamic Imports for Heavy Modals & Secondary Widgets
+const LogWorkoutModal = dynamic(() => import("@/components/LogWorkoutModal"), { ssr: false });
+const WorkoutDetailModal = dynamic(() => import("@/components/WorkoutDetailModal"), { ssr: false });
+const LogStudyModal = dynamic(() => import("@/components/LogStudyModal"), { ssr: false });
+const LogSleepModal = dynamic(() => import("@/components/LogSleepModal"), { ssr: false });
+const LogVitalsModal = dynamic(() => import("@/components/LogVitalsModal"), { ssr: false });
+const LogNutritionModal = dynamic(() => import("@/components/LogNutritionModal"), { ssr: false });
+const CreateGoalModal = dynamic(() => import("@/components/CreateGoalModal"), { ssr: false });
+const HabitHeatmap = dynamic(() => import("@/components/HabitHeatmap"), { ssr: false, loading: () => <MetricCardSkeleton /> });
+const InsightsEngine = dynamic(() => import("@/components/InsightsEngine"), { ssr: false, loading: () => <MetricCardSkeleton /> });
+const ThemeSelector = dynamic(() => import("@/components/ThemeSelector"), { ssr: false, loading: () => <MetricCardSkeleton /> });
+const QuickStartTemplates = dynamic(() => import("@/components/QuickStartTemplates"), { ssr: false });
+const HydrationWidget = dynamic(() => import("@/components/HydrationWidget"), { ssr: false });
+const CommandPalette = dynamic(() => import("@/components/CommandPalette"), { ssr: false });
+const ToastNotification = dynamic(() => import("@/components/ToastNotification"), { ssr: false });
+const AuthModal = dynamic(() => import("@/components/AuthModal"), { ssr: false });
+const StudyHeatmap = dynamic(() => import("@/components/StudyHeatmap"), { ssr: false });
+const MoodSelector = dynamic(() => import("@/components/MoodSelector"), { ssr: false });
+const FocusTimer = dynamic(() => import("@/components/FocusTimer"), { ssr: false });
+const SleepBar = dynamic(() => import("@/components/SleepBar"), { ssr: false });
 import { useAuth } from "@/hooks/useAuth";
 import {
   useHealthMetrics,
@@ -1036,7 +1040,7 @@ export default function Home() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full overflow-y-auto overflow-x-hidden scroll-smooth pb-24 touch-pan-y relative pt-24 sm:pt-28 px-6 sm:px-12 max-w-[1440px] lg:ml-72">
+      <main className="flex-1 w-full overflow-y-auto overflow-x-hidden scroll-smooth pb-32 sm:pb-24 touch-pan-y relative pt-24 sm:pt-28 px-4 sm:px-12 max-w-[1440px] lg:ml-72">
         <motion.div
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}

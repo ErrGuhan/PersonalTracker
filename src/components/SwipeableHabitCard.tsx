@@ -64,7 +64,7 @@ export default function SwipeableHabitCard({
 
       {/* Foreground Draggable Habit Card */}
       <motion.div
-        style={{ x }}
+        style={{ x, touchAction: "pan-y", willChange: "transform" }}
         drag={!habit.completedToday ? "x" : false}
         dragConstraints={{ left: -100, right: 100 }}
         dragElastic={0.2}
