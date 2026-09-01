@@ -20,6 +20,8 @@ import {
   logStudySession,
   getHabits,
   getFreezeTokens,
+  getUserXP,
+  getXPLevel,
   getHabitLogs,
   completeHabitGamified,
   freezeHabitWithToken,
@@ -293,11 +295,13 @@ export function useCreateGoal() {
 export function useHabits() {
   const [habits, setHabits] = useState<Habit[]>(() => (typeof window !== "undefined" ? getHabits() : []));
   const [freezeTokens, setTokens] = useState<number>(() => (typeof window !== "undefined" ? getFreezeTokens() : 0));
+  const [userXP, setXP] = useState<number>(() => (typeof window !== "undefined" ? getUserXP() : 0));
   const [habitLogs, setLogs] = useState<HabitLog[]>(() => (typeof window !== "undefined" ? getHabitLogs() : []));
 
   const refresh = useCallback(() => {
     setHabits(getHabits());
     setTokens(getFreezeTokens());
+    setXP(getUserXP());
     setLogs(getHabitLogs());
   }, []);
 
@@ -317,6 +321,7 @@ export function useHabits() {
     const updated = toggleHabitDb(id);
     setHabits(updated);
     setTokens(getFreezeTokens());
+    setXP(getUserXP());
     setLogs(getHabitLogs());
   };
 
@@ -350,9 +355,13 @@ export function useHabits() {
     refresh();
   };
 
+  const levelInfo = getXPLevel(userXP);
+
   return {
     habits,
     freezeTokens,
+    userXP,
+    levelInfo,
     habitLogs,
     completeHabit,
     freezeHabit,

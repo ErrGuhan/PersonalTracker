@@ -651,6 +651,35 @@ export function setFreezeTokens(count: number): number {
   return setLocal<number>("freeze_tokens", Math.max(0, count));
 }
 
+export function getUserXP(): number {
+  return getLocal<number>("user_xp", 150); // Default starting XP
+}
+
+export function setUserXP(xp: number): number {
+  return setLocal<number>("user_xp", Math.max(0, xp));
+}
+
+export function getXPLevel(xp: number): { level: number; currentXP: number; nextLevelXP: number } {
+  const level = Math.floor(xp / 100) + 1;
+  const currentXP = xp % 100;
+  return { level, currentXP, nextLevelXP: 100 };
+}
+
+export function addXP(amount: number): { oldXP: number; newXP: number; oldLevel: number; newLevel: number; leveledUp: boolean } {
+  const oldXP = getUserXP();
+  const oldLevel = Math.floor(oldXP / 100) + 1;
+  const newXP = oldXP + amount;
+  setUserXP(newXP);
+  const newLevel = Math.floor(newXP / 100) + 1;
+  return {
+    oldXP,
+    newXP,
+    oldLevel,
+    newLevel,
+    leveledUp: newLevel > oldLevel,
+  };
+}
+
 export function getHabitLogs(): HabitLog[] {
   // Generate sample 30-day logs if none exist yet for full visual heatmap
   const fallbackLogs: HabitLog[] = [];
@@ -695,14 +724,24 @@ export function getHabits(): Habit[] {
   return getLocal("habits", SEED_HABITS);
 }
 
-export async function completeHabitGamified(id: string, dateStr?: string): Promise<{ habit: Habit; awardedToken: boolean; newFreezeTokens: number }> {
+export async function completeHabitGamified(id: string, dateStr?: string): Promise<{
+  habit: Habit;
+  awardedToken: boolean;
+  newFreezeTokens: number;
+  xpGained: number;
+  totalXP: number;
+  level: number;
+  leveledUp: boolean;
+}> {
   const targetDate = dateStr ?? todayStr();
   const currentHabits = getHabits();
   let awardedToken = false;
   let newStreak = 0;
+  let habitWasCompleted = false;
 
   const updatedHabits = currentHabits.map((h) => {
     if (h.id === id) {
+      habitWasCompleted = h.completedToday;
       newStreak = h.completedToday ? h.streak : h.streak + 1;
       return {
         ...h,
@@ -741,6 +780,12 @@ export async function completeHabitGamified(id: string, dateStr?: string): Promi
     awardedToken = true;
   }
 
+  // Calculate XP gained (+25 XP for habit completion, +50 XP bonus for 7-day milestone)
+  let xpGained = habitWasCompleted ? 0 : 25;
+  if (awardedToken) xpGained += 50;
+
+  const xpResult = addXP(xpGained);
+
   // Attempt RPC call to Supabase in background
   try {
     const userId = await getActiveUserId();
@@ -756,7 +801,15 @@ export async function completeHabitGamified(id: string, dateStr?: string): Promi
   }
 
   const updatedHabit = updatedHabits.find((h) => h.id === id)!;
-  return { habit: updatedHabit, awardedToken, newFreezeTokens: tokens };
+  return {
+    habit: updatedHabit,
+    awardedToken,
+    newFreezeTokens: tokens,
+    xpGained,
+    totalXP: xpResult.newXP,
+    level: xpResult.newLevel,
+    leveledUp: xpResult.leveledUp,
+  };
 }
 
 export function freezeHabitWithToken(id: string, dateStr?: string): { success: boolean; remainingTokens: number } {

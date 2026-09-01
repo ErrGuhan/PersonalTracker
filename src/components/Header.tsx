@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Sun, Moon } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 import { useAuthContext } from "@/context/AuthProvider";
 import { 
   Zap, 
@@ -21,6 +23,7 @@ interface HeaderProps {
 }
 
 export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
+  const { theme, toggleTheme } = useTheme();
   const { user, isAuthenticated, signOut } = useAuthContext();
   const [menuOpen, setMenuOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -93,7 +96,17 @@ export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
             </span>
           </motion.button>
 
-          {/* Quick Search Trigger */}
+          {/* Theme Toggle Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={toggleTheme}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 transition-colors cursor-pointer"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </motion.button>
+
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

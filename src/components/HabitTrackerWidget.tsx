@@ -3,10 +3,11 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHabits } from "@/hooks/useSupabase";
-import { Plus, Sparkles, Shield, X, CheckCircle2, Calendar } from "lucide-react";
+import { Plus, Sparkles, Shield, X, CheckCircle2, Trophy, Zap } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import SwipeableHabitCard from "@/components/SwipeableHabitCard";
 import { HabitCardSkeleton } from "@/components/Skeletons";
+import RewardToast, { type RewardToastData } from "@/components/RewardToast";
 import type { Habit } from "@/lib/database.types";
 
 interface HabitTrackerWidgetProps {
@@ -15,9 +16,12 @@ interface HabitTrackerWidgetProps {
 }
 
 export default function HabitTrackerWidget({ loading = false, error = null }: HabitTrackerWidgetProps) {
-  const { habits, freezeTokens, completeHabit, freezeHabit, toggleHabit, addHabit, updateHabit, deleteHabit } = useHabits();
+  const { habits, freezeTokens, userXP, levelInfo, completeHabit, freezeHabit, toggleHabit, addHabit, updateHabit, deleteHabit } = useHabits();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
+
+  // Gamification Reward Toast state
+  const [rewardToast, setRewardToast] = useState<RewardToastData | null>(null);
 
   // Delete Confirmation Modal State
   const [habitToDeleteId, setHabitToDeleteId] = useState<string | null>(null);
@@ -26,6 +30,38 @@ export default function HabitTrackerWidget({ loading = false, error = null }: Ha
   // Form State
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<"health" | "fitness" | "focus" | "mindset">("health");
+
+  const handleCompleteHabit = async (id: string) => {
+    const res = await completeHabit(id);
+    if (res) {
+      if (res.leveledUp) {
+        setRewardToast({
+          id: `toast-${Date.now()}`,
+          title: `Level Up! Reached Level ${res.level}!`,
+          subtitle: `Congratulations! Keep building your consistent habits.`,
+          xpGained: res.xpGained,
+          type: "levelup",
+        });
+      } else if (res.awardedToken) {
+        setRewardToast({
+          id: `toast-${Date.now()}`,
+          title: `7-Day Streak Bonus!`,
+          subtitle: `Awarded +1 Rest Token & +${res.xpGained} XP!`,
+          tokensGained: 1,
+          xpGained: res.xpGained,
+          type: "token",
+        });
+      } else if (res.xpGained > 0) {
+        setRewardToast({
+          id: `toast-${Date.now()}`,
+          title: `Habit Completed!`,
+          subtitle: `${res.habit?.title || "Routine"} marked complete.`,
+          xpGained: res.xpGained,
+          type: "habit",
+        });
+      }
+    }
+  };
 
   // Sorted Habits: Incomplete habits first, completed habits move to bottom
   const sortedHabits = useMemo(() => {
@@ -95,10 +131,13 @@ export default function HabitTrackerWidget({ loading = false, error = null }: Ha
 
   return (
     <div className="glass-primary p-5 sm:p-6 flex flex-col gap-6 relative overflow-hidden">
+      {/* Toast Notification Container */}
+      <RewardToast toast={rewardToast} onClose={() => setRewardToast(null)} />
+
       {/* Background Glow Accent */}
       <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
 
-      {/* Header & Forgiving Token Badge */}
+      {/* Header & Forgiving Token / XP Badges */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <div>
@@ -106,10 +145,16 @@ export default function HabitTrackerWidget({ loading = false, error = null }: Ha
               <Sparkles className="w-5 h-5 text-cyan-400" />
               Daily Routines & Habits
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Forgiving streaks, swipe gestures & auto-ordering.</p>
+            <p className="text-xs text-slate-400 mt-0.5">Forgiving streaks, XP rewards & auto-ordering.</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Level & XP Badge */}
+            <div className="flex items-center gap-1.5 text-xs bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 px-3 py-1.5 rounded-xl font-bold font-mono">
+              <Trophy className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Lvl {levelInfo.level} ({userXP} XP)</span>
+            </div>
+
             {/* Rest Day Token Badge */}
             <div className="flex items-center gap-1.5 text-xs bg-amber-500/15 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-xl font-bold font-mono">
               <Shield className="w-3.5 h-3.5 text-amber-400" />
@@ -263,7 +308,7 @@ export default function HabitTrackerWidget({ loading = false, error = null }: Ha
                 <SwipeableHabitCard
                   habit={habit}
                   freezeTokens={freezeTokens}
-                  onComplete={(id) => completeHabit(id)}
+                  onComplete={(id) => handleCompleteHabit(id)}
                   onFreeze={(id) => freezeHabit(id)}
                   onToggle={(id) => toggleHabit(id)}
                   onEdit={(h) => handleOpenEdit(h)}

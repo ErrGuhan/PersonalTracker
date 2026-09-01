@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import BackgroundCanvas from "@/components/BackgroundCanvas";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import QuickActionSheet from "@/components/QuickActionSheet";
 import AuthModal from "@/components/AuthModal";
 import CommandPalette from "@/components/CommandPalette";
+import Onboarding from "@/components/Onboarding";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -17,13 +19,16 @@ interface AppShellProps {
   onOpenAuth?: () => void;
   onOpenSearch?: () => void;
   children: React.ReactNode;
+  freezeTokens?: number; // Added for gamification badge display
 }
+
 
 export default function AppShell({ activeTab, onNav, onSelectQuickAction, onOpenAuth, onOpenSearch, children }: AppShellProps) {
   const [showQuickAction, setShowQuickAction] = useState(false);
 
   return (
     <div className="flex h-screen bg-[#0B0F19] text-[#dfe2ee] font-sans antialiased overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-200 relative ambient-canvas">
+  <BackgroundCanvas />
       {/* Persistent Widescreen Sidebar */}
       <Sidebar active={activeTab} onNav={onNav} />
 
@@ -58,6 +63,9 @@ export default function AppShell({ activeTab, onNav, onSelectQuickAction, onOpen
         onClose={() => setShowQuickAction(false)}
         onSelectAction={onSelectQuickAction}
       />
+
+      {/* Interactive Onboarding Tutorial */}
+      <Onboarding />
     </div>
   );
 }

@@ -81,6 +81,9 @@ export default function QuickActionSheet({ isOpen, onClose, onSelectAction }: Qu
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => {
+                    if (typeof window !== "undefined" && navigator.vibrate) {
+                      navigator.vibrate(30);
+                    }
                     onSelectAction(act.id);
                     onClose();
                   }}

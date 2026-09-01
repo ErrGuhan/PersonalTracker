@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Zap, Flame, BookOpen, Heart, Target, LayoutDashboard, Brain, User, CheckCircle2 } from "lucide-react";
 
@@ -22,7 +23,11 @@ interface SidebarProps {
   onNav: (id: string) => void;
 }
 
-export default function Sidebar({ active, onNav }: SidebarProps) {
+const Sidebar = memo(function Sidebar({ active, onNav }: SidebarProps) {
+  const handleNav = useCallback((id: string) => {
+    onNav(id);
+  }, [onNav]);
+
   return (
     <aside className="hidden lg:flex flex-col h-screen sticky top-0 w-64 shrink-0 bg-[#0B0F19]/80 backdrop-blur-2xl border-r border-white/10 p-6 z-40">
       {/* Brand Header */}
@@ -48,11 +53,10 @@ export default function Sidebar({ active, onNav }: SidebarProps) {
 
         {NAV_ITEMS.map((item) => {
           const isActive = active === item.id || (active === "dashboard" && item.id === "overview");
-
           return (
             <button
               key={item.id}
-              onClick={() => onNav(item.id)}
+              onClick={() => handleNav(item.id)}
               className={`relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all duration-200 cursor-pointer ${
                 isActive
                   ? "text-white font-bold bg-white/[0.08] border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]"
@@ -86,4 +90,10 @@ export default function Sidebar({ active, onNav }: SidebarProps) {
       </div>
     </aside>
   );
-}
+});
+
+export default Sidebar;
+
+
+
+
