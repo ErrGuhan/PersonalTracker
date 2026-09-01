@@ -92,61 +92,60 @@ html, body {
   background-attachment: fixed;
 }
 
-/* Glassmorphism System Levels (Hardware-Accelerated) */
+/* Glassmorphism System Levels */
 .glass-primary {
   background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 1rem;
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.25);
-  will-change: transform;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
 .glass-secondary {
   background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(10px) saturate(120%);
-  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.875rem;
 }
 
 .glass-interactive {
   background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
-  will-change: transform;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-interactive:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(6, 182, 212, 0.3);
+  box-shadow: 0 12px 35px 0 rgba(0, 0, 0, 0.35);
   transform: translateY(-1px);
 }
 
 .glass-active {
   background: rgba(6, 182, 212, 0.12);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(6, 182, 212, 0.4);
-  box-shadow: 0 0 15px 0 rgba(6, 182, 212, 0.2);
+  box-shadow: 0 0 20px 0 rgba(6, 182, 212, 0.25);
 }
 
 /* Legacy glass-panel compatibility alias */
 .glass-panel {
   background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s ease, border-color 0.2s ease;
-  will-change: transform;
+  box-shadow: 0 8px 30px 0 rgba(0, 0, 0, 0.25);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .glass-panel:hover {
   border-color: rgba(6, 182, 212, 0.3);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
 }
 
 /* Gradient Text Utilities */
