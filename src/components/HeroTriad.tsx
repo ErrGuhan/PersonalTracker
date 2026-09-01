@@ -1,13 +1,17 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BookOpen, Flame, Moon, Sparkles, Activity } from "lucide-react";
+import { BookOpen, Flame, Moon, AlertTriangle, RefreshCw } from "lucide-react";
+import { MetricCardSkeleton } from "@/components/Skeletons";
 
 interface HeroTriadProps {
-  studyMins: number;
-  caloriesBurned: number;
-  sleepHours: number;
-  recoveryScore: number;
+  studyMins?: number | null;
+  caloriesBurned?: number | null;
+  sleepHours?: number | null;
+  recoveryScore?: number | null;
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   onOpenStudy: () => void;
   onOpenWorkout: () => void;
   onOpenSleep: () => void;
@@ -18,10 +22,70 @@ export default function HeroTriad({
   caloriesBurned,
   sleepHours,
   recoveryScore,
+  loading = false,
+  error = null,
+  onRetry,
   onOpenStudy,
   onOpenWorkout,
   onOpenSleep,
 }: HeroTriadProps) {
+  // 1. LOADING STATE
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 w-full">
+        <MetricCardSkeleton />
+        <MetricCardSkeleton />
+        <MetricCardSkeleton />
+      </div>
+    );
+  }
+
+  // 2. ERROR STATE
+  if (error) {
+    return (
+      <div className="glass-primary p-6 rounded-2xl border border-rose-500/30 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-white">Unable to load metrics</h4>
+            <p className="text-xs text-slate-400">{error}</p>
+          </div>
+        </div>
+
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition flex items-center gap-2 cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Try Again
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Value Formatters: Distinguish actual 0 from null/undefined
+  const formatValue = (val: number | null | undefined, suffix = "") => {
+    if (val === null || val === undefined || Number.isNaN(val)) {
+      return { text: "—", sub: "No data yet", isMissing: true };
+    }
+    return { text: `${val}${suffix}`, sub: `${val} recorded today`, isMissing: false };
+  };
+
+  const focusData = formatValue(studyMins);
+  const burnData = formatValue(caloriesBurned);
+  const restData = formatValue(sleepHours);
+  const recScoreText = recoveryScore !== null && recoveryScore !== undefined && !Number.isNaN(recoveryScore)
+    ? `${recoveryScore}% Rec`
+    : "— Rec";
+
+  // Safe Progress Percentages (Guarded against division by zero & NaN)
+  const focusPct = studyMins && studyMins > 0 ? Math.min(100, (studyMins / 180) * 100) : 0;
+  const burnPct = caloriesBurned && caloriesBurned > 0 ? Math.min(100, (caloriesBurned / 2200) * 100) : 0;
+  const restPct = sleepHours && sleepHours > 0 ? Math.min(100, (sleepHours / 8) * 100) : 0;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 w-full">
       {/* 1. FOCUS CARD */}
@@ -49,15 +113,17 @@ export default function HeroTriad({
 
         <div className="flex items-baseline gap-1.5 my-1">
           <span className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-gradient-cyan">
-            {studyMins}
+            {focusData.text}
           </span>
-          <span className="text-xs font-mono text-slate-400">mins today</span>
+          <span className="text-xs font-mono text-slate-400">
+            {focusData.isMissing ? "no data" : "mins today"}
+          </span>
         </div>
 
         <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden border border-white/5">
           <div
             className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.6)]"
-            style={{ width: `${Math.min(100, (studyMins / 180) * 100)}%` }}
+            style={{ width: `${focusPct}%` }}
           />
         </div>
       </motion.div>
@@ -87,15 +153,17 @@ export default function HeroTriad({
 
         <div className="flex items-baseline gap-1.5 my-1">
           <span className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-gradient-orange">
-            {caloriesBurned}
+            {burnData.text}
           </span>
-          <span className="text-xs font-mono text-slate-400">kcal burned</span>
+          <span className="text-xs font-mono text-slate-400">
+            {burnData.isMissing ? "no data" : "kcal burned"}
+          </span>
         </div>
 
         <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden border border-white/5">
           <div
             className="h-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.6)]"
-            style={{ width: `${Math.min(100, (caloriesBurned / 2200) * 100)}%` }}
+            style={{ width: `${burnPct}%` }}
           />
         </div>
       </motion.div>
@@ -119,21 +187,23 @@ export default function HeroTriad({
             </span>
           </div>
           <span className="text-[10px] font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-            {recoveryScore}% Rec
+            {recScoreText}
           </span>
         </div>
 
         <div className="flex items-baseline gap-1.5 my-1">
           <span className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-gradient-violet">
-            {sleepHours}
+            {restData.text}
           </span>
-          <span className="text-xs font-mono text-slate-400">hours sleep</span>
+          <span className="text-xs font-mono text-slate-400">
+            {restData.isMissing ? "no data" : "hours sleep"}
+          </span>
         </div>
 
         <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden border border-white/5">
           <div
             className="h-full bg-gradient-to-r from-purple-400 to-indigo-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.6)]"
-            style={{ width: `${Math.min(100, (sleepHours / 8) * 100)}%` }}
+            style={{ width: `${restPct}%` }}
           />
         </div>
       </motion.div>

@@ -137,10 +137,10 @@ export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
                   className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] transition-colors cursor-pointer"
                 >
                   <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                    {userEmail ? userEmail.charAt(0).toUpperCase() : <UserIcon className="w-3.5 h-3.5" />}
+                    {userEmail ? userEmail.charAt(0).toUpperCase() : "A"}
                   </div>
-                  <span className="text-xs font-medium text-slate-200 max-w-[90px] truncate hidden sm:inline">
-                    {userEmail?.split("@")[0]}
+                  <span className="text-xs font-medium text-slate-200 max-w-[110px] truncate hidden sm:inline">
+                    {userEmail ? userEmail.split("@")[0] : "Welcome back"}
                   </span>
                   <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${menuOpen ? "rotate-180" : ""}`} />
                 </motion.button>

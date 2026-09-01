@@ -22,7 +22,7 @@ export default function ProgressiveRings({
   const strokeDashoffsetOuter = circumferenceOuter - (percentage / 100) * circumferenceOuter;
 
   // Inner Ring (Streak Multiplier / Milestone Progress: milestone out of 7)
-  const milestoneProgress = ((streakDays % 7) / 7) * 100;
+  const milestoneProgress = streakDays > 0 ? ((streakDays % 7) / 7) * 100 : 0;
   const radiusInner = 38;
   const circumferenceInner = 2 * Math.PI * radiusInner;
   const strokeDashoffsetInner = circumferenceInner - (milestoneProgress / 100) * circumferenceInner;
@@ -114,8 +114,12 @@ export default function ProgressiveRings({
 
         {/* Center Percentage Display */}
         <div className="absolute flex flex-col items-center justify-center text-center">
-          <span className="text-2xl font-black text-white font-mono tracking-tight">{percentage}%</span>
-          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Completed</span>
+          <span className="text-2xl font-black text-white font-mono tracking-tight">
+            {totalCount === 0 ? "—" : `${percentage}%`}
+          </span>
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">
+            {totalCount === 0 ? "No Habits" : "Completed"}
+          </span>
         </div>
       </div>
 
@@ -123,12 +127,16 @@ export default function ProgressiveRings({
       <div className="w-full flex items-center justify-between text-xs pt-2 border-t border-white/5">
         <div className="flex items-center gap-1.5 text-cyan-400">
           <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
-          <span className="text-[11px] font-medium text-slate-300">Habits: {completedCount}/{totalCount}</span>
+          <span className="text-[11px] font-medium text-slate-300">
+            {totalCount === 0 ? "No habits set" : `Habits: ${completedCount}/${totalCount}`}
+          </span>
         </div>
 
         <div className="flex items-center gap-1.5 text-purple-400">
           <Award className="w-3.5 h-3.5" />
-          <span className="text-[11px] font-medium text-slate-300">Token: {(streakDays % 7)}/7 d</span>
+          <span className="text-[11px] font-medium text-slate-300">
+            {streakDays === 0 ? "No streak yet" : `Token: ${(streakDays % 7)}/7 d`}
+          </span>
         </div>
       </div>
     </div>

@@ -3,12 +3,18 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHabits } from "@/hooks/useSupabase";
-import { Plus, Sparkles, Shield, X } from "lucide-react";
+import { Plus, Sparkles, Shield, X, CheckCircle2, Calendar } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import SwipeableHabitCard from "@/components/SwipeableHabitCard";
+import { HabitCardSkeleton } from "@/components/Skeletons";
 import type { Habit } from "@/lib/database.types";
 
-export default function HabitTrackerWidget() {
+interface HabitTrackerWidgetProps {
+  loading?: boolean;
+  error?: string | null;
+}
+
+export default function HabitTrackerWidget({ loading = false, error = null }: HabitTrackerWidgetProps) {
   const { habits, freezeTokens, completeHabit, freezeHabit, toggleHabit, addHabit, updateHabit, deleteHabit } = useHabits();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
@@ -30,7 +36,11 @@ export default function HabitTrackerWidget() {
   }, [habits]);
 
   const completedCount = habits.filter((h) => h.completedToday).length;
-  const completionPct = habits.length > 0 ? Math.round((completedCount / habits.length) * 100) : 0;
+  const totalCount = habits.length;
+
+  // Safe percentage calculation preventing NaN% or division by zero
+  const completionPct = totalCount > 0 ? Math.min(100, Math.round((completedCount / totalCount) * 100)) : 0;
+  const isAllCompleted = totalCount > 0 && completedCount === totalCount;
 
   const handleOpenAdd = () => {
     setEditingHabitId(null);
@@ -122,7 +132,7 @@ export default function HabitTrackerWidget() {
         <div className="flex items-baseline justify-between mt-1">
           <div className="flex items-baseline gap-2">
             <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">{completedCount}</span>
-            <span className="text-xs text-slate-400 font-mono uppercase tracking-widest">/ {habits.length} COMPLETED</span>
+            <span className="text-xs text-slate-400 font-mono uppercase tracking-widest">/ {totalCount} COMPLETED</span>
           </div>
           <span className="font-mono text-xs text-cyan-400 font-extrabold bg-cyan-500/10 px-2.5 py-1 rounded-xl border border-cyan-500/30">
             {completionPct}% Done
@@ -203,16 +213,42 @@ export default function HabitTrackerWidget() {
         )}
       </AnimatePresence>
 
-      {/* Swipeable Habit List with Auto Layout Reordering */}
-      {habits.length === 0 ? (
+      {/* 4 DISTINCT HABIT LIST DATA STATES */}
+      {loading ? (
+        // 1. LOADING STATE
+        <div className="space-y-3">
+          <HabitCardSkeleton />
+          <HabitCardSkeleton />
+          <HabitCardSkeleton />
+        </div>
+      ) : totalCount === 0 ? (
+        // 2. NO HABITS CONFIGURED STATE
         <EmptyState
           icon={Sparkles}
-          title="Your Journey Starts Here"
-          description="Build compounding streak momentum by tracking your first daily health, fitness, or focus habit."
+          title="No habits configured yet"
+          description="Start building your daily personal system by adding your first health, fitness, or focus habit."
           actionLabel="Create First Habit"
           onAction={handleOpenAdd}
         />
+      ) : isAllCompleted ? (
+        // 3. ALL HABITS COMPLETED TODAY CELEBRATION STATE
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-cyan-500/15 border border-emerald-500/40 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-3 shadow-[0_0_25px_rgba(16,185,129,0.25)]"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 shadow-inner">
+            <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <h4 className="text-base font-extrabold text-white tracking-tight">✓ All done for today!</h4>
+            <p className="text-xs text-slate-300 max-w-xs">
+              You've completed every scheduled habit routine for today. Great consistency!
+            </p>
+          </div>
+        </motion.div>
       ) : (
+        // 4. HABITS AVAILABLE STATE
         <div className="space-y-3">
           <AnimatePresence mode="popLayout">
             {sortedHabits.map((habit) => (

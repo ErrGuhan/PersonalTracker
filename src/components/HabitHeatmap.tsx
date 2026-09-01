@@ -29,32 +29,35 @@ export default function HabitHeatmap({ habits, logs, days = 30 }: HabitHeatmapPr
       const dayLogs = logs.filter((l) => l.date === dateStr);
       const completed = dayLogs.filter((l) => l.status === "COMPLETED").length;
       const frozen = dayLogs.filter((l) => l.status === "FROZEN").length;
-      const total = habits.length || 1;
+      const total = habits.length || 0;
       
-      const score = Math.min(100, Math.round(((completed + frozen) / total) * 100));
+      const score = total > 0 ? Math.min(100, Math.round(((completed + frozen) / total) * 100)) : 0;
       return {
         date: dateStr,
         completed,
         frozen,
         total,
         score,
+        hasActivity: dayLogs.length > 0,
       };
     });
   }, [dateRange, logs, habits]);
 
+  const hasAnyActivity = logs.length > 0;
+
   // Overall 30-Day Reliability Score
   const reliabilityScore = useMemo(() => {
-    if (heatmapStats.length === 0) return 0;
+    if (!hasAnyActivity || habits.length === 0) return null;
     const totalScore = heatmapStats.reduce((acc, curr) => acc + curr.score, 0);
     return Math.round(totalScore / heatmapStats.length);
-  }, [heatmapStats]);
+  }, [heatmapStats, hasAnyActivity, habits]);
 
   // Helper for cell color based on score/status
-  const getCellStyles = (score: number, frozenCount: number) => {
-    if (frozenCount > 0 && score === 0) {
+  const getCellStyles = (score: number, frozenCount: number, hasActivity: boolean) => {
+    if (frozenCount > 0) {
       return "bg-amber-500/30 border-amber-500/50 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.3)]";
     }
-    if (score === 0) {
+    if (!hasActivity || score === 0) {
       return "bg-slate-800/40 border-white/5 hover:border-slate-600/50";
     }
     if (score < 40) {
@@ -85,7 +88,9 @@ export default function HabitHeatmap({ habits, logs, days = 30 }: HabitHeatmapPr
         <div className="flex items-center gap-2 bg-slate-900/90 border border-white/10 px-3 py-1.5 rounded-xl self-start sm:self-auto">
           <ShieldCheck className="w-4 h-4 text-cyan-400" />
           <span className="text-xs text-slate-300 font-medium">Reliability Score:</span>
-          <span className="text-sm font-extrabold text-cyan-400 font-mono">{reliabilityScore}%</span>
+          <span className="text-sm font-extrabold text-cyan-400 font-mono">
+            {reliabilityScore !== null ? `${reliabilityScore}%` : "— Not enough data"}
+          </span>
         </div>
       </div>
 
@@ -105,7 +110,8 @@ export default function HabitHeatmap({ habits, logs, days = 30 }: HabitHeatmapPr
                 whileHover={{ scale: 1.15, zIndex: 20 }}
                 className={`relative group aspect-square rounded-lg border transition-all duration-200 cursor-pointer flex items-center justify-center ${getCellStyles(
                   item.score,
-                  item.frozen
+                  item.frozen,
+                  item.hasActivity
                 )}`}
               >
                 <span className="text-[10px] opacity-75 font-mono select-none">
@@ -115,9 +121,15 @@ export default function HabitHeatmap({ habits, logs, days = 30 }: HabitHeatmapPr
                 {/* Tooltip */}
                 <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-1 bg-slate-900 border border-cyan-500/30 text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap z-30 pointer-events-none">
                   <span className="font-semibold text-cyan-400">{dayLabel}</span>
-                  <span>{item.completed} completed habit(s)</span>
-                  {item.frozen > 0 && <span className="text-amber-400">🛡️ {item.frozen} Rest Day (Frozen)</span>}
-                  <span className="text-slate-400 text-[10px] font-mono">{item.score}% reliability</span>
+                  {item.hasActivity ? (
+                    <>
+                      <span>{item.completed} completed habit(s)</span>
+                      {item.frozen > 0 && <span className="text-amber-400">🛡️ {item.frozen} Rest Day (Frozen)</span>}
+                      <span className="text-slate-400 text-[10px] font-mono">{item.score}% reliability</span>
+                    </>
+                  ) : (
+                    <span className="text-slate-400 text-[10px]">No activity recorded</span>
+                  )}
                 </div>
               </motion.div>
             );

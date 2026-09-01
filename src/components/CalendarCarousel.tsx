@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 interface CalendarCarouselProps {
   selectedDate: string; // YYYY-MM-DD
@@ -16,6 +16,17 @@ export default function CalendarCarousel({
   daysCount = 14,
 }: CalendarCarouselProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Safe date label formatter preventing "Invalid Date"
+  const formattedDateLabel = useMemo(() => {
+    try {
+      const d = new Date(selectedDate);
+      if (isNaN(d.getTime())) return "Today";
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    } catch {
+      return "Today";
+    }
+  }, [selectedDate]);
 
   // Generate date items for past N days up to today
   const datesList = useMemo(() => {
@@ -61,7 +72,7 @@ export default function CalendarCarousel({
         </div>
 
         <span className="text-[11px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-          {new Date(selectedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          {formattedDateLabel}
         </span>
       </div>
 

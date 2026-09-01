@@ -121,10 +121,10 @@ function DashboardView({
     () => new Date().toISOString().split("T")[0]
   );
 
-  const recoveryScore = metrics?.recovery_score ?? 87;
-  const studyMins = studyStats?.todayMinutes ?? 50;
-  const workoutCals = weeklyStats?.totalCalories ?? 520;
-  const sleepHrs = sleepData?.hours ?? 7.5;
+  const recoveryScore = metrics?.recovery_score ?? (mLoading ? null : 85);
+  const studyMins = studyStats?.todayMinutes ?? (sLoading ? null : 0);
+  const workoutCals = metrics?.calories_burned ?? weeklyStats?.totalCalories ?? (wLoading ? null : 0);
+  const sleepHrs = sleepData?.hours ?? (slLoading ? null : 0);
 
   const completedHabitsCount = habits.filter((h) => h.completedToday).length;
   const maxStreakDays = habits.reduce((max, h) => Math.max(max, h.streak), 0);
@@ -151,9 +151,10 @@ function DashboardView({
         <motion.div variants={itemVariants}>
           <HeroTriad
             studyMins={studyMins}
-            caloriesBurned={metrics?.calories_burned ?? workoutCals}
+            caloriesBurned={workoutCals}
             sleepHours={sleepHrs}
             recoveryScore={recoveryScore}
+            loading={mLoading && sLoading && wLoading && slLoading}
             onOpenStudy={onOpenStudyModal}
             onOpenWorkout={onOpenWorkoutModal}
             onOpenSleep={onOpenSleepModal}
