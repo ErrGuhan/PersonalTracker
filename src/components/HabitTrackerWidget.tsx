@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHabits } from "@/hooks/useSupabase";
-import { Check, Plus, Flame, Sparkles, MoreVertical, Pencil, Trash2, X, Shield, Smartphone, Award } from "lucide-react";
+import { Plus, Sparkles, Shield, X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import SwipeableHabitCard from "@/components/SwipeableHabitCard";
 import type { Habit } from "@/lib/database.types";
 
 export default function HabitTrackerWidget() {
   const { habits, freezeTokens, completeHabit, freezeHabit, toggleHabit, addHabit, updateHabit, deleteHabit } = useHabits();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   // Delete Confirmation Modal State
   const [habitToDeleteId, setHabitToDeleteId] = useState<string | null>(null);
@@ -20,6 +20,14 @@ export default function HabitTrackerWidget() {
   // Form State
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<"health" | "fitness" | "focus" | "mindset">("health");
+
+  // Sorted Habits: Incomplete habits first, completed habits move to bottom
+  const sortedHabits = useMemo(() => {
+    return [...habits].sort((a, b) => {
+      if (a.completedToday === b.completedToday) return 0;
+      return a.completedToday ? 1 : -1;
+    });
+  }, [habits]);
 
   const completedCount = habits.filter((h) => h.completedToday).length;
   const completionPct = habits.length > 0 ? Math.round((completedCount / habits.length) * 100) : 0;
@@ -35,7 +43,6 @@ export default function HabitTrackerWidget() {
     setEditingHabitId(habit.id);
     setTitle(habit.title);
     setCategory(habit.category as "health" | "fitness" | "focus" | "mindset");
-    setMenuOpenId(null);
     setShowAddForm(true);
   };
 
@@ -77,7 +84,7 @@ export default function HabitTrackerWidget() {
   };
 
   return (
-    <div className="bg-[#0F172A]/60 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-6 flex flex-col gap-6 relative overflow-hidden">
+    <div className="glass-primary p-5 sm:p-6 flex flex-col gap-6 relative overflow-hidden">
       {/* Background Glow Accent */}
       <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -89,7 +96,7 @@ export default function HabitTrackerWidget() {
               <Sparkles className="w-5 h-5 text-cyan-400" />
               Daily Routines & Habits
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Forgiving streaks with Rest Day tokens & visual unlocks.</p>
+            <p className="text-xs text-slate-400 mt-0.5">Forgiving streaks, swipe gestures & auto-ordering.</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -142,7 +149,7 @@ export default function HabitTrackerWidget() {
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: "easeInOut" }}
             onSubmit={handleFormSubmit}
-            className="bg-[#0F172A]/80 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-5 overflow-hidden flex flex-col gap-4 shadow-xl"
+            className="bg-[#0F172A]/90 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-5 overflow-hidden flex flex-col gap-4 shadow-xl"
           >
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-cyan-400 uppercase font-mono tracking-wider">
@@ -196,7 +203,7 @@ export default function HabitTrackerWidget() {
         )}
       </AnimatePresence>
 
-      {/* Habit Cards with Phase 3 Dynamic Themes & Gestures */}
+      {/* Swipeable Habit List with Auto Layout Reordering */}
       {habits.length === 0 ? (
         <EmptyState
           icon={Sparkles}
@@ -206,135 +213,30 @@ export default function HabitTrackerWidget() {
           onAction={handleOpenAdd}
         />
       ) : (
-        <motion.ul className="space-y-3">
+        <div className="space-y-3">
           <AnimatePresence mode="popLayout">
-            {habits.map((habit) => {
-              const isGlassmorphic = habit.streak > 14;
-              const hasSwipeGesture = habit.streak > 30;
-
-              return (
-                <motion.li
-                  key={habit.id}
-                  layout
-                  drag={hasSwipeGesture ? "x" : false}
-                  dragConstraints={{ left: 0, right: 90 }}
-                  onDragEnd={(e, info) => {
-                    if (hasSwipeGesture && info.offset.x > 60 && !habit.completedToday) {
-                      completeHabit(habit.id);
-                    }
-                  }}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  className={`relative flex items-center justify-between p-4 rounded-xl border transition-all ${
-                    habit.completedToday
-                      ? "bg-cyan-500/10 border-cyan-500/40 text-slate-400"
-                      : isGlassmorphic
-                      ? "bg-gradient-to-r from-cyan-500/20 via-purple-500/15 to-indigo-500/20 border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.25)] backdrop-blur-2xl"
-                      : "bg-slate-900/60 border-white/5 text-white hover:border-white/20"
-                  }`}
-                >
-                  <div
-                    className="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer"
-                    onClick={() => (habit.completedToday ? toggleHabit(habit.id) : completeHabit(habit.id))}
-                  >
-                    {/* Circle Checkbox */}
-                    <div
-                      className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs transition-all duration-300 shrink-0 ${
-                        habit.completedToday
-                          ? "bg-cyan-400 border-cyan-400 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.8)]"
-                          : "border-white/30 text-transparent hover:border-cyan-400"
-                      }`}
-                    >
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p
-                          className={`text-xs sm:text-sm font-bold transition-all ${
-                            habit.completedToday ? "line-through text-slate-500" : "text-white"
-                          }`}
-                        >
-                          {habit.title}
-                        </p>
-
-                        {/* Visual Unlock Badges */}
-                        {isGlassmorphic && (
-                          <span className="text-[9px] font-extrabold uppercase font-mono px-2 py-0.5 rounded bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-400/40 text-cyan-300 flex items-center gap-1 shadow-sm">
-                            <Sparkles className="w-2.5 h-2.5" /> Glassmorphic
-                          </span>
-                        )}
-
-                        {hasSwipeGesture && (
-                          <span className="text-[9px] font-extrabold uppercase font-mono px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 flex items-center gap-1">
-                            <Smartphone className="w-2.5 h-2.5" /> Swipe Enabled
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 text-[10px] font-mono mt-1">
-                        <span className="uppercase tracking-widest text-cyan-400 font-semibold">{habit.category}</span>
-                        <span className="text-slate-600">·</span>
-                        <span className="flex items-center gap-1 text-slate-300 font-semibold">
-                          <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
-                          {habit.streak} day streak
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions & Rest Token */}
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
-                    {!habit.completedToday && freezeTokens > 0 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          freezeHabit(habit.id);
-                        }}
-                        title="Use Rest Token to freeze streak"
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition flex items-center gap-1 cursor-pointer"
-                      >
-                        <Shield className="w-3 h-3 text-amber-400" />
-                        <span className="hidden sm:inline">Rest Token</span>
-                      </button>
-                    )}
-
-                    <div className="relative">
-                      <button
-                        onClick={() => setMenuOpenId(menuOpenId === habit.id ? null : habit.id)}
-                        className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition cursor-pointer"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-
-                      {menuOpenId === habit.id && (
-                        <div className="absolute right-0 top-full mt-1 w-32 bg-slate-900 border border-white/10 rounded-xl shadow-xl z-20 overflow-hidden py-1">
-                          <button
-                            onClick={() => handleOpenEdit(habit)}
-                            className="w-full px-3 py-2 text-left text-xs text-slate-300 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
-                          >
-                            <Pencil className="w-3.5 h-3.5" /> Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              setMenuOpenId(null);
-                              setHabitToDeleteId(habit.id);
-                            }}
-                            className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" /> Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.li>
-              );
-            })}
+            {sortedHabits.map((habit) => (
+              <motion.div
+                key={habit.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              >
+                <SwipeableHabitCard
+                  habit={habit}
+                  freezeTokens={freezeTokens}
+                  onComplete={(id) => completeHabit(id)}
+                  onFreeze={(id) => freezeHabit(id)}
+                  onToggle={(id) => toggleHabit(id)}
+                  onEdit={(h) => handleOpenEdit(h)}
+                  onDelete={(id) => setHabitToDeleteId(id)}
+                />
+              </motion.div>
+            ))}
           </AnimatePresence>
-        </motion.ul>
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
