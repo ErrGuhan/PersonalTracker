@@ -1,6 +1,6 @@
 "use server";
 
-import { getHabitLogs, getHabits, getRecentWorkouts, getLatestHealthMetrics } from "@/lib/db";
+import { getHabitLogs, getHabits, getRecentWorkouts, getLatestHealthMetrics, exportAllDataJSON } from "@/lib/db";
 
 export async function exportUserDataCSV(): Promise<{ success: boolean; filename: string; csvContent: string }> {
   try {
@@ -49,6 +49,26 @@ export async function exportUserDataCSV(): Promise<{ success: boolean; filename:
       success: false,
       filename: "",
       csvContent: "",
+    };
+  }
+}
+
+export async function exportUserDataJSON(): Promise<{ success: boolean; filename: string; jsonContent: string }> {
+  try {
+    const jsonContent = exportAllDataJSON();
+    const filename = `lifesync_data_backup_${new Date().toISOString().split("T")[0]}.json`;
+
+    return {
+      success: true,
+      filename,
+      jsonContent,
+    };
+  } catch (err) {
+    console.error("[Export JSON Error]:", err);
+    return {
+      success: false,
+      filename: "",
+      jsonContent: "{}",
     };
   }
 }
