@@ -12,10 +12,6 @@ import LogVitalsModal from "@/components/LogVitalsModal";
 import LogNutritionModal from "@/components/LogNutritionModal";
 import CreateGoalModal from "@/components/CreateGoalModal";
 import HabitTrackerWidget from "@/components/HabitTrackerWidget";
-import HabitHeatmap from "@/components/HabitHeatmap";
-import ProgressiveRings from "@/components/ProgressiveRings";
-import PredictiveHabitWidget from "@/components/PredictiveHabitWidget";
-import QuickStartTemplates from "@/components/QuickStartTemplates";
 import HydrationWidget from "@/components/HydrationWidget";
 import CommandPalette from "@/components/CommandPalette";
 import ToastNotification from "@/components/ToastNotification";
@@ -34,7 +30,6 @@ import {
   useLatestSleep,
   useGoals,
   useNutrition,
-  useHabits,
 } from "@/hooks/useSupabase";
 import type { Workout } from "@/lib/database.types";
 import { exportAllDataJSON, resetBaselineData } from "@/lib/db";
@@ -111,16 +106,12 @@ function DashboardView({
   const { data: sleepData, loading: slLoading } = useLatestSleep();
   const { workouts, loading: wListLoading } = useRecentWorkouts(3);
   const { submitMood, moodScore } = useLatestMood();
-  const { habits, habitLogs, completeHabit, addHabit } = useHabits();
   const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null);
 
   const recoveryScore = metrics?.recovery_score ?? 0;
   const studyMins = studyStats?.todayMinutes ?? 0;
   const workoutCals = weeklyStats?.totalCalories ?? 0;
   const sleepHrs = sleepData?.hours ?? 0;
-
-  const completedHabitsCount = habits.filter((h) => h.completedToday).length;
-  const maxStreakDays = habits.reduce((max, h) => Math.max(max, h.streak), 0);
 
   return (
     <>
@@ -138,15 +129,10 @@ function DashboardView({
         initial="hidden"
         animate="show"
         exit="exit"
-        className="flex flex-col gap-6 sm:gap-8 w-full max-w-full overflow-x-hidden pb-32 lg:pb-16"
+        className="flex flex-col gap-8 sm:gap-10 w-full max-w-full overflow-x-hidden pb-32 lg:pb-16"
       >
-        {/* Phase 3: Predictive Surfacing 1-Tap Completion Banner */}
-        <motion.div variants={itemVariants}>
-          <PredictiveHabitWidget habits={habits} onComplete={completeHabit} />
-        </motion.div>
-
         {/* Hero Sync Ring HUD */}
-        <motion.section variants={itemVariants} className="flex flex-col items-center justify-center py-2 relative">
+        <motion.section variants={itemVariants} className="flex flex-col items-center justify-center py-4 relative">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 sm:w-72 sm:h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none glow-cyan-active" />
 
           <div className="relative w-64 h-64 sm:w-72 sm:h-72 lg:w-80 lg:h-80 flex items-center justify-center">
@@ -307,29 +293,14 @@ function DashboardView({
           </motion.div>
         </motion.section>
 
-        {/* Phase 2: Progressive Rings & Habit Tracker */}
+        {/* Embedded Widgets: Routines & Hydration */}
         <motion.div variants={containerVariants} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 flex flex-col gap-6">
+          <div className="lg:col-span-7">
             <HabitTrackerWidget />
           </div>
-          <div className="lg:col-span-4 flex flex-col gap-6">
-            <ProgressiveRings
-              completedCount={completedHabitsCount}
-              totalCount={habits.length}
-              streakDays={maxStreakDays}
-            />
+          <div className="lg:col-span-5">
             <HydrationWidget />
           </div>
-        </motion.div>
-
-        {/* Phase 2: 30-Day Reliability Heatmap */}
-        <motion.div variants={itemVariants}>
-          <HabitHeatmap habits={habits} logs={habitLogs} />
-        </motion.div>
-
-        {/* Phase 4: Quick-Start Preset Templates */}
-        <motion.div variants={itemVariants}>
-          <QuickStartTemplates onAddTemplate={addHabit} />
         </motion.div>
 
         {/* Recent Activity */}

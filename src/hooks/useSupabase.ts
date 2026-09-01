@@ -19,10 +19,6 @@ import {
   logWorkout,
   logStudySession,
   getHabits,
-  getFreezeTokens,
-  getHabitLogs,
-  completeHabitGamified,
-  freezeHabitWithToken,
   toggleHabit as toggleHabitDb,
   addHabit as addHabitDb,
   updateHabit as updateHabitDb,
@@ -37,7 +33,7 @@ import {
   DEMO_USER_ID,
   type StudyStats,
 } from "@/lib/db";
-import type { HealthMetric, Workout, Goal, SleepLog, Habit, HabitLog, HydrationLog, MealLog } from "@/lib/database.types";
+import type { HealthMetric, Workout, Goal, SleepLog, Habit, HydrationLog, MealLog } from "@/lib/database.types";
 
 // ─────────────────────────────────────────────────────────
 // Generic async hook factory with local broadcast listener
@@ -292,13 +288,9 @@ export function useCreateGoal() {
 // ─────────────────────────────────────────────────────────
 export function useHabits() {
   const [habits, setHabits] = useState<Habit[]>(() => (typeof window !== "undefined" ? getHabits() : []));
-  const [freezeTokens, setTokens] = useState<number>(() => (typeof window !== "undefined" ? getFreezeTokens() : 0));
-  const [habitLogs, setLogs] = useState<HabitLog[]>(() => (typeof window !== "undefined" ? getHabitLogs() : []));
 
   const refresh = useCallback(() => {
     setHabits(getHabits());
-    setTokens(getFreezeTokens());
-    setLogs(getHabitLogs());
   }, []);
 
   useEffect(() => {
@@ -316,52 +308,24 @@ export function useHabits() {
   const toggle = (id: string) => {
     const updated = toggleHabitDb(id);
     setHabits(updated);
-    setTokens(getFreezeTokens());
-    setLogs(getHabitLogs());
-  };
-
-  const completeHabit = async (id: string, dateStr?: string) => {
-    const result = await completeHabitGamified(id, dateStr);
-    refresh();
-    return result;
-  };
-
-  const freezeHabit = (id: string, dateStr?: string) => {
-    const result = freezeHabitWithToken(id, dateStr);
-    refresh();
-    return result;
   };
 
   const add = (newHabit: Omit<Habit, "id" | "streak" | "completedToday">) => {
     const updated = addHabitDb(newHabit);
     setHabits(updated);
-    refresh();
   };
 
   const update = (id: string, updatedFields: Partial<Habit>) => {
     const updated = updateHabitDb(id, updatedFields);
     setHabits(updated);
-    refresh();
   };
 
   const remove = (id: string) => {
     const updated = deleteHabitDb(id);
     setHabits(updated);
-    refresh();
   };
 
-  return {
-    habits,
-    freezeTokens,
-    habitLogs,
-    completeHabit,
-    freezeHabit,
-    toggleHabit: toggle,
-    addHabit: add,
-    updateHabit: update,
-    deleteHabit: remove,
-    refetch: refresh,
-  };
+  return { habits, toggleHabit: toggle, addHabit: add, updateHabit: update, deleteHabit: remove, refetch: refresh };
 }
 
 export function useHydration() {
