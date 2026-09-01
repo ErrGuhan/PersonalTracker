@@ -38,6 +38,7 @@ export interface Database {
           avg_heart_rate: number | null;
           distance_km: number | null;
           notes: string | null;
+          plan?: Json;
           workout_date: string;
           created_at: string;
         };

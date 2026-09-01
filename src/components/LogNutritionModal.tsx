@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useNutrition } from "@/hooks/useSupabase";
-import { estimateNutritionAction } from "@/app/actions/estimateNutrition";
+import { estimateNutritionAction } from "@/app/actions/nutrition";
 
 interface LogNutritionModalProps {
   onClose: () => void;
@@ -23,19 +23,21 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
   const [carbs, setCarbs] = useState<number>(50);
   const [fats, setFats] = useState<number>(15);
 
-  // AI Loading & Saved States
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // AI Loading, Assumptions & Saved States
+  const [isEstimating, setIsEstimating] = useState(false);
+  const [assumptions, setAssumptions] = useState("");
   const [aiSuccess, setAiSuccess] = useState(false);
   const [saved, setSaved] = useState(false);
 
   /* ─────────────────────────────────────────────────────────
-     1. ON BLUR AI AUTO-FILL TRIGGER
+     1. GEMINI AI ESTIMATION TRIGGER
      ───────────────────────────────────────────────────────── */
-  const handleMealBlur = async () => {
-    if (!mealDescription.trim() || isAnalyzing) return;
+  const handleEstimate = async () => {
+    if (!mealDescription.trim() || isEstimating) return;
 
-    setIsAnalyzing(true);
+    setIsEstimating(true);
     setAiSuccess(false);
+    setAssumptions("");
 
     try {
       const result = await estimateNutritionAction(mealDescription);
@@ -44,17 +46,18 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
         setProtein(result.protein);
         setCarbs(result.carbs);
         setFats(result.fats);
+        setAssumptions(result.assumptions);
         setAiSuccess(true);
       }
     } catch (err) {
       console.warn("[LogNutritionModal] AI Estimation failed:", err);
     } finally {
-      setIsAnalyzing(false);
+      setIsEstimating(false);
     }
   };
 
   /* ─────────────────────────────────────────────────────────
-     2. SUPABASE SUBMISSION MUTATION
+     2. SUBMISSION MUTATION
      ───────────────────────────────────────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,10 +66,10 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
       await logMeal({
         name: mealDescription.trim() || `${mealCategory.toUpperCase()} Meal`,
         mealType: mealCategory,
-        calories: Number(calories),
-        proteinG: Number(protein),
-        carbsG: Number(carbs),
-        fatsG: Number(fats),
+        calories: Math.round(Number(calories)),
+        proteinG: Math.round(Number(protein)),
+        carbsG: Math.round(Number(carbs)),
+        fatsG: Math.round(Number(fats)),
       });
 
       router.refresh();
@@ -111,7 +114,7 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-white/10 transition"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-white/10 transition cursor-pointer"
           >
             ✕
           </button>
@@ -141,19 +144,19 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
             </div>
           </div>
 
-          {/* Meal Description Input with onBlur AI Auto-Fill */}
+          {/* Meal Description Input with AI Estimate Trigger */}
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider">
                 Meal Description
               </label>
-              {isAnalyzing && (
+              {isEstimating && (
                 <span className="font-mono text-[10px] text-secondary animate-pulse flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs animate-spin">sync</span>
+                  <span className="w-2.5 h-2.5 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
                   Analyzing Macros…
                 </span>
               )}
-              {aiSuccess && !isAnalyzing && (
+              {aiSuccess && !isEstimating && (
                 <span className="font-mono text-[10px] text-emerald-400 font-bold flex items-center gap-1">
                   ✓ AI Auto-filled Macros
                 </span>
@@ -163,36 +166,64 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
             <div className="relative">
               <input
                 type="text"
-                placeholder="e.g. Salmon Quinoa Salad with Avocado"
+                placeholder="e.g. rice, chicken gravy, 250g"
                 required
-                className="w-full bg-surface-container/70 border border-white/15 rounded-xl text-white text-sm px-3.5 py-3 outline-none focus:border-secondary transition shadow-inner placeholder:text-white/30"
+                disabled={isEstimating}
+                className="w-full bg-surface-container/70 border border-white/15 rounded-xl text-white text-sm px-3.5 py-3 outline-none focus:border-secondary transition shadow-inner placeholder:text-white/30 pr-28 disabled:opacity-60"
                 value={mealDescription}
                 onChange={(e) => {
                   setMealDescription(e.target.value);
                   setAiSuccess(false);
                 }}
-                onBlur={handleMealBlur}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && mealDescription.trim()) {
+                    e.preventDefault();
+                    handleEstimate();
+                  }
+                }}
               />
               <button
                 type="button"
-                onClick={handleMealBlur}
-                disabled={!mealDescription.trim() || isAnalyzing}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg bg-secondary/20 border border-secondary/40 text-secondary text-[11px] font-bold hover:bg-secondary/30 transition disabled:opacity-40"
+                onClick={handleEstimate}
+                disabled={!mealDescription.trim() || isEstimating}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-secondary/20 border border-secondary/40 text-secondary text-xs font-bold hover:bg-secondary/30 transition disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
               >
-                ✨ Estimate
+                {isEstimating ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
+                    <span>Estimating…</span>
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span>
+                    <span>Estimate</span>
+                  </>
+                )}
               </button>
             </div>
-            <p className="text-[10px] text-on-surface-variant font-mono mt-1">
-              Tip: Click out or press tab to auto-estimate calories & macros using Gemini.
-            </p>
+
+            {/* Dynamic Contextual User Feedback */}
+            {isEstimating ? (
+              <p className="text-xs text-cyan-400 font-mono mt-1.5 animate-pulse flex items-center gap-1">
+                <span>✨ Gemini AI analyzing nutritional profile & portion sizes…</span>
+              </p>
+            ) : assumptions ? (
+              <p className="text-xs text-cyan-400 font-mono mt-1.5 flex items-start gap-1">
+                <span>💡 {assumptions}</span>
+              </p>
+            ) : (
+              <p className="text-[10px] text-on-surface-variant font-mono mt-1">
+                Tip: Enter meal description &amp; click Estimate to auto-calculate macros using Gemini.
+              </p>
+            )}
           </div>
 
-          {/* Calories Input Field with Pulsing AI Loading State */}
+          {/* Calories Input Field */}
           <div>
             <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
               Energy / Calories (kcal)
             </label>
-            <div className={`relative rounded-xl transition-all duration-300 ${isAnalyzing ? "animate-pulse border border-secondary/50 bg-secondary/10" : ""}`}>
+            <div className={`relative rounded-xl transition-all duration-300 ${isEstimating ? "animate-pulse border border-secondary/50 bg-secondary/10" : ""}`}>
               <input
                 type="number"
                 min={0}
@@ -204,13 +235,13 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
             </div>
           </div>
 
-          {/* Macros Grid (Protein, Carbs, Fats) with Pulsing AI Loading State */}
+          {/* Macros Grid (Protein, Carbs, Fats) */}
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
                 Protein (g)
               </label>
-              <div className={`rounded-xl transition-all duration-300 ${isAnalyzing ? "animate-pulse border border-primary/50 bg-primary/10" : ""}`}>
+              <div className={`rounded-xl transition-all duration-300 ${isEstimating ? "animate-pulse border border-primary/50 bg-primary/10" : ""}`}>
                 <input
                   type="number"
                   min={0}
@@ -225,7 +256,7 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
               <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
                 Carbs (g)
               </label>
-              <div className={`rounded-xl transition-all duration-300 ${isAnalyzing ? "animate-pulse border border-tertiary/50 bg-tertiary/10" : ""}`}>
+              <div className={`rounded-xl transition-all duration-300 ${isEstimating ? "animate-pulse border border-tertiary/50 bg-tertiary/10" : ""}`}>
                 <input
                   type="number"
                   min={0}
@@ -240,7 +271,7 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
               <label className="block font-mono text-xs text-on-surface-variant uppercase tracking-wider mb-1">
                 Fats (g)
               </label>
-              <div className={`rounded-xl transition-all duration-300 ${isAnalyzing ? "animate-pulse border border-secondary/50 bg-secondary/10" : ""}`}>
+              <div className={`rounded-xl transition-all duration-300 ${isEstimating ? "animate-pulse border border-secondary/50 bg-secondary/10" : ""}`}>
                 <input
                   type="number"
                   min={0}
@@ -255,11 +286,11 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={saved || isAnalyzing}
+            disabled={saved || isEstimating}
             className={`w-full py-3.5 rounded-xl font-extrabold text-sm transition-all duration-200 shadow-[0_0_20px_rgba(236,106,6,0.3)] active:scale-[0.98] ${
               saved
                 ? "bg-emerald-500 text-white"
-                : "bg-gradient-to-r from-secondary-container via-secondary to-amber-500 text-slate-950 hover:shadow-[0_0_30px_rgba(236,106,6,0.5)]"
+                : "bg-gradient-to-r from-secondary-container via-secondary to-amber-500 text-slate-950 hover:shadow-[0_0_30px_rgba(236,106,6,0.5)] cursor-pointer"
             }`}
           >
             {saved ? "✓ Meal Tracked to Supabase!" : "Save & Track Meal"}
