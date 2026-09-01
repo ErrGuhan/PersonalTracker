@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHabits } from "@/hooks/useSupabase";
-import { Check, Plus, Flame, Sparkles, MoreVertical, Pencil, Trash2, X } from "lucide-react";
+import { Check, Plus, Flame, Sparkles, MoreVertical, Pencil, Trash2, X, Shield, Smartphone, Award } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import type { Habit } from "@/lib/database.types";
 
 export default function HabitTrackerWidget() {
-  const { habits, toggleHabit, addHabit, updateHabit, deleteHabit } = useHabits();
+  const { habits, freezeTokens, completeHabit, freezeHabit, toggleHabit, addHabit, updateHabit, deleteHabit } = useHabits();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -81,26 +81,34 @@ export default function HabitTrackerWidget() {
       {/* Background Glow Accent */}
       <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
 
-      {/* Header & Encouraging Subtitle */}
+      {/* Header & Forgiving Token Badge */}
       <div className="flex flex-col gap-3">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           <div>
             <h3 className="font-extrabold text-lg sm:text-xl text-white tracking-tight flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-cyan-400" />
               Daily Routines & Habits
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Track your daily wins and build compounding habits.</p>
+            <p className="text-xs text-slate-400 mt-0.5">Forgiving streaks with Rest Day tokens & visual unlocks.</p>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => (showAddForm ? setShowAddForm(false) : handleOpenAdd())}
-            className="flex items-center gap-1.5 text-xs bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 px-3.5 py-1.5 rounded-xl hover:bg-cyan-500/25 transition font-semibold cursor-pointer shadow-[0_0_12px_rgba(6,182,212,0.25)]"
-          >
-            {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {showAddForm ? "Cancel" : "New Habit"}
-          </motion.button>
+          <div className="flex items-center gap-2">
+            {/* Rest Day Token Badge */}
+            <div className="flex items-center gap-1.5 text-xs bg-amber-500/15 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-xl font-bold font-mono">
+              <Shield className="w-3.5 h-3.5 text-amber-400" />
+              <span>{freezeTokens} Rest Tokens</span>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => (showAddForm ? setShowAddForm(false) : handleOpenAdd())}
+              className="flex items-center gap-1.5 text-xs bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 px-3.5 py-1.5 rounded-xl hover:bg-cyan-500/25 transition font-semibold cursor-pointer shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+            >
+              {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              {showAddForm ? "Cancel" : "New Habit"}
+            </motion.button>
+          </div>
         </div>
 
         {/* Oversized Bold Completion Progress Counter */}
@@ -125,7 +133,7 @@ export default function HabitTrackerWidget() {
         </div>
       </div>
 
-      {/* Seamless Add / Edit Habit Form */}
+      {/* Add / Edit Habit Form */}
       <AnimatePresence>
         {showAddForm && (
           <motion.form
@@ -188,7 +196,7 @@ export default function HabitTrackerWidget() {
         )}
       </AnimatePresence>
 
-      {/* Zero-Data Empty State or Staggered Habit Checklist */}
+      {/* Habit Cards with Phase 3 Dynamic Themes & Gestures */}
       {habits.length === 0 ? (
         <EmptyState
           icon={Sparkles}
@@ -200,156 +208,166 @@ export default function HabitTrackerWidget() {
       ) : (
         <motion.ul className="space-y-3">
           <AnimatePresence mode="popLayout">
-            {habits.map((habit) => (
-              <motion.li
-                key={habit.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, height: 0, marginBottom: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className={`relative flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                  habit.completedToday
-                    ? "bg-cyan-500/10 border-cyan-500/40 text-slate-400"
-                    : "bg-slate-900/60 border-white/5 text-white hover:border-white/20"
-                }`}
-              >
-                <div
-                  className="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer"
-                  onClick={() => toggleHabit(habit.id)}
-                >
-                  {/* Checkbox circle filled with glowing cyan accent on completion */}
-                  <div
-                    className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs transition-all duration-300 shrink-0 ${
-                      habit.completedToday
-                        ? "bg-cyan-400 border-cyan-400 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.8)]"
-                        : "border-white/30 text-transparent hover:border-cyan-400"
-                    }`}
-                  >
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  </div>
+            {habits.map((habit) => {
+              const isGlassmorphic = habit.streak > 14;
+              const hasSwipeGesture = habit.streak > 30;
 
-                  <div className="min-w-0">
-                    <p
-                      className={`text-xs sm:text-sm font-bold transition-all ${
-                        habit.completedToday ? "line-through text-slate-500" : "text-white"
+              return (
+                <motion.li
+                  key={habit.id}
+                  layout
+                  drag={hasSwipeGesture ? "x" : false}
+                  dragConstraints={{ left: 0, right: 90 }}
+                  onDragEnd={(e, info) => {
+                    if (hasSwipeGesture && info.offset.x > 60 && !habit.completedToday) {
+                      completeHabit(habit.id);
+                    }
+                  }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className={`relative flex items-center justify-between p-4 rounded-xl border transition-all ${
+                    habit.completedToday
+                      ? "bg-cyan-500/10 border-cyan-500/40 text-slate-400"
+                      : isGlassmorphic
+                      ? "bg-gradient-to-r from-cyan-500/20 via-purple-500/15 to-indigo-500/20 border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.25)] backdrop-blur-2xl"
+                      : "bg-slate-900/60 border-white/5 text-white hover:border-white/20"
+                  }`}
+                >
+                  <div
+                    className="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer"
+                    onClick={() => (habit.completedToday ? toggleHabit(habit.id) : completeHabit(habit.id))}
+                  >
+                    {/* Circle Checkbox */}
+                    <div
+                      className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs transition-all duration-300 shrink-0 ${
+                        habit.completedToday
+                          ? "bg-cyan-400 border-cyan-400 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.8)]"
+                          : "border-white/30 text-transparent hover:border-cyan-400"
                       }`}
                     >
-                      {habit.title}
-                    </p>
-                    <div className="flex items-center gap-2 text-[10px] font-mono mt-0.5">
-                      <span className="uppercase tracking-widest text-cyan-400 font-semibold">{habit.category}</span>
-                      <span className="text-slate-600">·</span>
-                      <span className="flex items-center gap-1 text-slate-400">
-                        <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
-                        {habit.streak} day streak
-                      </span>
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p
+                          className={`text-xs sm:text-sm font-bold transition-all ${
+                            habit.completedToday ? "line-through text-slate-500" : "text-white"
+                          }`}
+                        >
+                          {habit.title}
+                        </p>
+
+                        {/* Visual Unlock Badges */}
+                        {isGlassmorphic && (
+                          <span className="text-[9px] font-extrabold uppercase font-mono px-2 py-0.5 rounded bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-400/40 text-cyan-300 flex items-center gap-1 shadow-sm">
+                            <Sparkles className="w-2.5 h-2.5" /> Glassmorphic
+                          </span>
+                        )}
+
+                        {hasSwipeGesture && (
+                          <span className="text-[9px] font-extrabold uppercase font-mono px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 flex items-center gap-1">
+                            <Smartphone className="w-2.5 h-2.5" /> Swipe Enabled
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 text-[10px] font-mono mt-1">
+                        <span className="uppercase tracking-widest text-cyan-400 font-semibold">{habit.category}</span>
+                        <span className="text-slate-600">·</span>
+                        <span className="flex items-center gap-1 text-slate-300 font-semibold">
+                          <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
+                          {habit.streak} day streak
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Progressive Disclosure Action Menu (Vertical Ellipsis) */}
-                <div className="relative shrink-0 ml-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpenId((prev) => (prev === habit.id ? null : habit.id));
-                    }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                    aria-label="Actions"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-
-                  <AnimatePresence>
-                    {menuOpenId === habit.id && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 top-8 z-30 w-32 bg-slate-900/95 backdrop-blur-xl border border-white/15 p-1 rounded-xl shadow-2xl"
+                  {/* Actions & Rest Token */}
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    {!habit.completedToday && freezeTokens > 0 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          freezeHabit(habit.id);
+                        }}
+                        title="Use Rest Token to freeze streak"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition flex items-center gap-1 cursor-pointer"
                       >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenEdit(habit);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/10 rounded-lg transition"
-                        >
-                          <Pencil className="w-3.5 h-3.5 text-cyan-400" />
-                          Edit
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMenuOpenId(null);
-                            setHabitToDeleteId(habit.id);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                          Delete
-                        </button>
-                      </motion.div>
+                        <Shield className="w-3 h-3 text-amber-400" />
+                        <span className="hidden sm:inline">Rest Token</span>
+                      </button>
                     )}
-                  </AnimatePresence>
-                </div>
-              </motion.li>
-            ))}
+
+                    <div className="relative">
+                      <button
+                        onClick={() => setMenuOpenId(menuOpenId === habit.id ? null : habit.id)}
+                        className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition cursor-pointer"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+
+                      {menuOpenId === habit.id && (
+                        <div className="absolute right-0 top-full mt-1 w-32 bg-slate-900 border border-white/10 rounded-xl shadow-xl z-20 overflow-hidden py-1">
+                          <button
+                            onClick={() => handleOpenEdit(habit)}
+                            className="w-full px-3 py-2 text-left text-xs text-slate-300 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
+                          >
+                            <Pencil className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMenuOpenId(null);
+                              setHabitToDeleteId(habit.id);
+                            }}
+                            className="w-full px-3 py-2 text-left text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.li>
+              );
+            })}
           </AnimatePresence>
         </motion.ul>
       )}
 
-      {/* Glassmorphic Delete Confirmation Modal Overlay */}
+      {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {habitToDeleteId && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={() => setHabitToDeleteId(null)}
-          >
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-[#0F172A]/90 border border-white/10 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl relative overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl flex flex-col gap-4"
             >
-              <h3 className="font-extrabold text-lg text-white mb-2">Delete Habit?</h3>
-              <p className="text-sm text-slate-400 mb-6">
-                Are you sure you want to delete this habit? This will permanently remove your current streak and history.
+              <h4 className="text-lg font-bold text-white">Delete Habit?</h4>
+              <p className="text-xs text-slate-400">
+                Are you sure you want to delete this habit routine? Current streak data will be lost.
               </p>
-
-              <div className="flex items-center justify-end gap-3">
+              <div className="flex gap-3 justify-end mt-2">
                 <button
-                  type="button"
-                  disabled={isDeleting}
                   onClick={() => setHabitToDeleteId(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-white/10 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
-                  type="button"
-                  disabled={isDeleting}
                   onClick={confirmDelete}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 transition cursor-pointer flex items-center gap-2"
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-500 text-white hover:bg-rose-600 transition cursor-pointer"
                 >
-                  {isDeleting ? (
-                    <>
-                      <span className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                      Deleting…
-                    </>
-                  ) : (
-                    "Yes, Delete"
-                  )}
+                  {isDeleting ? "Deleting..." : "Delete Habit"}
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

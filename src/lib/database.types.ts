@@ -7,6 +7,45 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          email: string | null;
+          full_name: string | null;
+          freeze_tokens: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["profiles"]["Row"], "created_at" | "updated_at">;
+        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+      };
+      habits: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          category: string;
+          current_streak: number;
+          frequency: string;
+          target_count: number;
+          icon: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["habits"]["Row"], "id" | "created_at" | "updated_at">;
+        Update: Partial<Database["public"]["Tables"]["habits"]["Insert"]>;
+      };
+      habit_logs: {
+        Row: {
+          id: string;
+          habit_id: string;
+          date: string;
+          status: "COMPLETED" | "FROZEN" | "MISSED";
+          created_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["habit_logs"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["habit_logs"]["Insert"]>;
+      };
       health_metrics: {
         Row: {
           id: string;
@@ -106,18 +145,31 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
+    Functions: {
+      complete_habit: {
+        Args: {
+          p_habit_id: string;
+          p_date?: string;
+        };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      habit_status: "COMPLETED" | "FROZEN" | "MISSED";
+    };
   };
 }
 
 // ─── Convenience row types ─────────────────────────────────
-export type HealthMetric   = Database["public"]["Tables"]["health_metrics"]["Row"];
-export type Workout        = Database["public"]["Tables"]["workouts"]["Row"];
-export type StudySession   = Database["public"]["Tables"]["study_sessions"]["Row"];
-export type MoodLog        = Database["public"]["Tables"]["mood_logs"]["Row"];
-export type SleepLog       = Database["public"]["Tables"]["sleep_logs"]["Row"];
-export type Goal           = Database["public"]["Tables"]["goals"]["Row"];
+export type UserProfile   = Database["public"]["Tables"]["profiles"]["Row"];
+export type HabitRow      = Database["public"]["Tables"]["habits"]["Row"];
+export type HabitLogRow   = Database["public"]["Tables"]["habit_logs"]["Row"];
+export type HealthMetric  = Database["public"]["Tables"]["health_metrics"]["Row"];
+export type Workout       = Database["public"]["Tables"]["workouts"]["Row"];
+export type StudySession  = Database["public"]["Tables"]["study_sessions"]["Row"];
+export type MoodLog       = Database["public"]["Tables"]["mood_logs"]["Row"];
+export type SleepLog      = Database["public"]["Tables"]["sleep_logs"]["Row"];
+export type Goal          = Database["public"]["Tables"]["goals"]["Row"];
 
 export interface Habit {
   id: string;
@@ -128,6 +180,15 @@ export interface Habit {
   frequency: string;
   targetCount: number;
   icon: string;
+  typicalHour?: number; // 0..23 for predictive surfacing
+}
+
+export interface HabitLog {
+  id: string;
+  habit_id: string;
+  date: string; // YYYY-MM-DD
+  status: "COMPLETED" | "FROZEN" | "MISSED";
+  logged_at?: string;
 }
 
 export interface HydrationLog {
@@ -146,4 +207,5 @@ export interface MealLog {
   fatsG: number;
   loggedAt: string;
 }
+
 

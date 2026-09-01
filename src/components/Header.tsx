@@ -9,8 +9,11 @@ import {
   User as UserIcon, 
   LogOut, 
   Sparkles, 
-  ChevronDown 
+  ChevronDown,
+  Download,
+  Check
 } from "lucide-react";
+import { exportUserDataCSV } from "@/app/actions/export";
 
 interface HeaderProps {
   onOpenAuth?: () => void;
@@ -20,6 +23,31 @@ interface HeaderProps {
 export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
   const { user, isAuthenticated, signOut } = useAuthContext();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
+
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      const res = await exportUserDataCSV();
+      if (res.success && res.csvContent) {
+        const blob = new Blob([res.csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", res.filename || "lifesync_export.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setExported(true);
+        setTimeout(() => setExported(false), 2500);
+      }
+    } catch (err) {
+      console.error("[Export CSV Error]:", err);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -44,8 +72,27 @@ export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
           </div>
         </div>
 
-        {/* Right Actions: Search + Auth CTA */}
-        <div className="flex items-center gap-3">
+        {/* Right Actions: CSV Export + Search + Auth CTA */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Export CSV Server Action Trigger */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleExportCSV}
+            disabled={exporting}
+            title="Export habit & workout logs as CSV"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-semibold transition-colors cursor-pointer"
+          >
+            {exported ? (
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+            ) : (
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+            )}
+            <span className="hidden sm:inline">
+              {exporting ? "Exporting..." : exported ? "CSV Exported!" : "Export CSV"}
+            </span>
+          </motion.button>
+
           {/* Quick Search Trigger */}
           <motion.button
             whileHover={{ scale: 1.05 }}

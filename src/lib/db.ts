@@ -8,6 +8,7 @@ import type {
   SleepLog,
   Goal,
   Habit,
+  HabitLog,
   HydrationLog,
   MealLog,
 } from "./database.types";
@@ -592,22 +593,216 @@ export async function createGoal(
 }
 
 // ─────────────────────────────────────────────────────────
-// HABITS, HYDRATION & NUTRITION ACCESS
+// HABITS, GAMIFICATION & FORGIVING STREAKS
 // ─────────────────────────────────────────────────────────
 
+export const SEED_HABITS: Habit[] = [
+  {
+    id: "h-hydration-1",
+    title: "Hydration Goal (2.5L Water)",
+    category: "health",
+    streak: 32, // > 30 triggers swipe-to-complete & glassmorphic glow!
+    completedToday: false,
+    frequency: "Daily",
+    targetCount: 1,
+    icon: "💧",
+    typicalHour: new Date().getHours(), // Matches current hour for predictive surfacing!
+  },
+  {
+    id: "h-meditation-2",
+    title: "10-Min Mindfulness Meditation",
+    category: "mindset",
+    streak: 18, // > 14 triggers glassmorphic glow!
+    completedToday: false,
+    frequency: "Daily",
+    targetCount: 1,
+    icon: "🧘",
+    typicalHour: (new Date().getHours() + 1) % 24,
+  },
+  {
+    id: "h-reading-3",
+    title: "Read 10 Pages of Tech / Philosophy",
+    category: "focus",
+    streak: 6, // 1 step from 7-day freeze token milestone!
+    completedToday: false,
+    frequency: "Daily",
+    targetCount: 1,
+    icon: "📚",
+    typicalHour: (new Date().getHours() + 2) % 24,
+  },
+  {
+    id: "h-workout-4",
+    title: "30-Min Cardio or Strength Training",
+    category: "fitness",
+    streak: 12,
+    completedToday: true,
+    frequency: "Daily",
+    targetCount: 1,
+    icon: "🏃",
+    typicalHour: (new Date().getHours() - 1 + 24) % 24,
+  },
+];
+
+export function getFreezeTokens(): number {
+  return getLocal<number>("freeze_tokens", 2); // Default baseline 2 tokens for demo
+}
+
+export function setFreezeTokens(count: number): number {
+  return setLocal<number>("freeze_tokens", Math.max(0, count));
+}
+
+export function getHabitLogs(): HabitLog[] {
+  // Generate sample 30-day logs if none exist yet for full visual heatmap
+  const fallbackLogs: HabitLog[] = [];
+  const habits = getHabits();
+
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split("T")[0];
+
+    habits.forEach((h, idx) => {
+      // Create pattern: mostly completed, some frozen, few missed
+      if ((i + idx) % 5 === 0) {
+        fallbackLogs.push({
+          id: `hl-gen-${h.id}-${dateStr}`,
+          habit_id: h.id,
+          date: dateStr,
+          status: "FROZEN",
+        });
+      } else if ((i + idx) % 7 !== 0) {
+        fallbackLogs.push({
+          id: `hl-gen-${h.id}-${dateStr}`,
+          habit_id: h.id,
+          date: dateStr,
+          status: "COMPLETED",
+        });
+      } else {
+        fallbackLogs.push({
+          id: `hl-gen-${h.id}-${dateStr}`,
+          habit_id: h.id,
+          date: dateStr,
+          status: "MISSED",
+        });
+      }
+    });
+  }
+
+  return getLocal<HabitLog[]>("habit_logs", fallbackLogs);
+}
+
 export function getHabits(): Habit[] {
-  return getLocal("habits", INITIAL_HABITS);
+  return getLocal("habits", SEED_HABITS);
+}
+
+export async function completeHabitGamified(id: string, dateStr?: string): Promise<{ habit: Habit; awardedToken: boolean; newFreezeTokens: number }> {
+  const targetDate = dateStr ?? todayStr();
+  const currentHabits = getHabits();
+  let awardedToken = false;
+  let newStreak = 0;
+
+  const updatedHabits = currentHabits.map((h) => {
+    if (h.id === id) {
+      newStreak = h.completedToday ? h.streak : h.streak + 1;
+      return {
+        ...h,
+        completedToday: true,
+        streak: newStreak,
+      };
+    }
+    return h;
+  });
+
+  setLocal("habits", updatedHabits);
+
+  // Insert or update COMPLETED log for target date
+  const logs = getHabitLogs();
+  const existingIdx = logs.findIndex((l) => l.habit_id === id && l.date === targetDate);
+  const newLog: HabitLog = {
+    id: `hl-${id}-${Date.now()}`,
+    habit_id: id,
+    date: targetDate,
+    status: "COMPLETED",
+    logged_at: new Date().toISOString(),
+  };
+
+  if (existingIdx >= 0) {
+    logs[existingIdx] = newLog;
+  } else {
+    logs.push(newLog);
+  }
+  setLocal("habit_logs", logs);
+
+  // Check 7-day milestone: award freeze token if streak is multiple of 7
+  let tokens = getFreezeTokens();
+  if (newStreak > 0 && newStreak % 7 === 0) {
+    tokens += 1;
+    setFreezeTokens(tokens);
+    awardedToken = true;
+  }
+
+  // Attempt RPC call to Supabase in background
+  try {
+    const userId = await getActiveUserId();
+    const { data, error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>)("complete_habit", {
+      p_habit_id: id,
+      p_date: targetDate,
+    });
+    if (!error && data) {
+      console.log("[Supabase RPC complete_habit SUCCESS]:", data);
+    }
+  } catch (err) {
+    console.warn("[DB] Supabase RPC complete_habit fallback:", err);
+  }
+
+  const updatedHabit = updatedHabits.find((h) => h.id === id)!;
+  return { habit: updatedHabit, awardedToken, newFreezeTokens: tokens };
+}
+
+export function freezeHabitWithToken(id: string, dateStr?: string): { success: boolean; remainingTokens: number } {
+  const tokens = getFreezeTokens();
+  if (tokens <= 0) {
+    return { success: false, remainingTokens: 0 };
+  }
+
+  const targetDate = dateStr ?? todayStr();
+  const newTokens = tokens - 1;
+  setFreezeTokens(newTokens);
+
+  // Mark habit log as FROZEN without breaking streak
+  const logs = getHabitLogs();
+  const existingIdx = logs.findIndex((l) => l.habit_id === id && l.date === targetDate);
+  const newLog: HabitLog = {
+    id: `hl-frozen-${id}-${Date.now()}`,
+    habit_id: id,
+    date: targetDate,
+    status: "FROZEN",
+    logged_at: new Date().toISOString(),
+  };
+
+  if (existingIdx >= 0) {
+    logs[existingIdx] = newLog;
+  } else {
+    logs.push(newLog);
+  }
+  setLocal("habit_logs", logs);
+
+  return { success: true, remainingTokens: newTokens };
 }
 
 export function toggleHabit(id: string): Habit[] {
   const current = getHabits();
+  const target = current.find((h) => h.id === id);
+  if (target && !target.completedToday) {
+    completeHabitGamified(id);
+    return getHabits();
+  }
   const updated = current.map((h) => {
     if (h.id === id) {
-      const isDone = !h.completedToday;
       return {
         ...h,
-        completedToday: isDone,
-        streak: isDone ? h.streak + 1 : Math.max(0, h.streak - 1),
+        completedToday: false,
+        streak: Math.max(0, h.streak - 1),
       };
     }
     return h;
@@ -621,6 +816,7 @@ export function addHabit(newHabit: Omit<Habit, "id" | "streak" | "completedToday
     id: `h-local-${Date.now()}`,
     streak: 1,
     completedToday: false,
+    typicalHour: new Date().getHours(),
   };
   const current = getHabits();
   return setLocal("habits", [...current, habit]);
@@ -637,6 +833,7 @@ export function deleteHabit(id: string): Habit[] {
   const updated = current.filter((h) => h.id !== id);
   return setLocal("habits", updated);
 }
+
 
 export function getHydration(): HydrationLog {
   return getLocal("hydration", INITIAL_HYDRATION);
