@@ -20,8 +20,6 @@ import HeroTriad from "@/components/HeroTriad";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import HoldToCommitButton from "@/components/HoldToCommitButton";
 import CalendarCarousel from "@/components/CalendarCarousel";
-import InsightsEngine from "@/components/InsightsEngine";
-import ThemeSelector from "@/components/ThemeSelector";
 import HydrationWidget from "@/components/HydrationWidget";
 import CommandPalette from "@/components/CommandPalette";
 import ToastNotification from "@/components/ToastNotification";
@@ -204,23 +202,6 @@ function DashboardView({
         {/* Phase 4: Quick-Start Preset Templates */}
         <motion.div variants={itemVariants}>
           <QuickStartTemplates onAddTemplate={addHabit} />
-        </motion.div>
-
-        {/* Phase 7: Rule-Based Insights Engine */}
-        <motion.div variants={itemVariants}>
-          <InsightsEngine
-            sleepData={sleepData}
-            studyMinutes={studyMins || 0}
-            workoutCount={workouts.length}
-            recoveryScore={recoveryScore || 0}
-            logs={habitLogs}
-            maxStreak={maxStreakDays}
-          />
-        </motion.div>
-
-        {/* Phase 8 & 10: Milestone Unlocks & Theme System */}
-        <motion.div variants={itemVariants}>
-          <ThemeSelector maxStreak={maxStreakDays} />
         </motion.div>
 
         {/* Recent Activity */}

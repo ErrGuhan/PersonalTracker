@@ -99,7 +99,7 @@ function notifyUpdate() {
   }
 }
 
-export function getLocal<T>(key: string, fallback: T): T {
+function getLocal<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try {
     const raw = localStorage.getItem(`lifesync_${key}`);
@@ -110,7 +110,7 @@ export function getLocal<T>(key: string, fallback: T): T {
   }
 }
 
-export function setLocal<T>(key: string, value: T): T {
+function setLocal<T>(key: string, value: T): T {
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem(`lifesync_${key}`, JSON.stringify(value));
