@@ -16,10 +16,6 @@ import HabitHeatmap from "@/components/HabitHeatmap";
 import ProgressiveRings from "@/components/ProgressiveRings";
 import PredictiveHabitWidget from "@/components/PredictiveHabitWidget";
 import QuickStartTemplates from "@/components/QuickStartTemplates";
-import HeroTriad from "@/components/HeroTriad";
-import MobileBottomNav from "@/components/MobileBottomNav";
-import HoldToCommitButton from "@/components/HoldToCommitButton";
-import CalendarCarousel from "@/components/CalendarCarousel";
 import HydrationWidget from "@/components/HydrationWidget";
 import CommandPalette from "@/components/CommandPalette";
 import ToastNotification from "@/components/ToastNotification";
@@ -117,14 +113,11 @@ function DashboardView({
   const { submitMood, moodScore } = useLatestMood();
   const { habits, habitLogs, completeHabit, addHabit } = useHabits();
   const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null);
-  const [selectedDateStr, setSelectedDateStr] = useState<string>(
-    () => new Date().toISOString().split("T")[0]
-  );
 
-  const recoveryScore = metrics?.recovery_score ?? 87;
-  const studyMins = studyStats?.todayMinutes ?? 50;
-  const workoutCals = weeklyStats?.totalCalories ?? 520;
-  const sleepHrs = sleepData?.hours ?? 7.5;
+  const recoveryScore = metrics?.recovery_score ?? 0;
+  const studyMins = studyStats?.todayMinutes ?? 0;
+  const workoutCals = weeklyStats?.totalCalories ?? 0;
+  const sleepHrs = sleepData?.hours ?? 0;
 
   const completedHabitsCount = habits.filter((h) => h.completedToday).length;
   const maxStreakDays = habits.reduce((max, h) => Math.max(max, h.streak), 0);
@@ -147,33 +140,174 @@ function DashboardView({
         exit="exit"
         className="flex flex-col gap-6 sm:gap-8 w-full max-w-full overflow-x-hidden pb-32 lg:pb-16"
       >
-        {/* HERO TRIAD — FOCUS / BURN / REST BENTO CARDS */}
-        <motion.div variants={itemVariants}>
-          <HeroTriad
-            studyMins={studyMins}
-            caloriesBurned={metrics?.calories_burned ?? workoutCals}
-            sleepHours={sleepHrs}
-            recoveryScore={recoveryScore}
-            onOpenStudy={onOpenStudyModal}
-            onOpenWorkout={onOpenWorkoutModal}
-            onOpenSleep={onOpenSleepModal}
-          />
-        </motion.div>
-
-        {/* TIME-AWARE PREDICTIVE SURFACING 1-TAP BANNER */}
+        {/* Phase 3: Predictive Surfacing 1-Tap Completion Banner */}
         <motion.div variants={itemVariants}>
           <PredictiveHabitWidget habits={habits} onComplete={completeHabit} />
         </motion.div>
 
-        {/* DAILY SCROLL-SNAPPING CALENDAR TIMELINE */}
-        <motion.div variants={itemVariants}>
-          <CalendarCarousel
-            selectedDate={selectedDateStr}
-            onSelectDate={(date) => setSelectedDateStr(date)}
-          />
-        </motion.div>
+        {/* Hero Sync Ring HUD */}
+        <motion.section variants={itemVariants} className="flex flex-col items-center justify-center py-2 relative">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 sm:w-72 sm:h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none glow-cyan-active" />
 
-        {/* BENTO SECTION: PROGRESSIVE RINGS & HABIT ROUTINES */}
+          <div className="relative w-64 h-64 sm:w-72 sm:h-72 lg:w-80 lg:h-80 flex items-center justify-center">
+            {/* Outer Ring: Study (Cyan) */}
+            <svg className="absolute inset-0 w-full h-full circular-progress" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" fill="none" r="45" stroke="rgba(255,255,255,0.06)" strokeWidth="4.5" />
+              <circle
+                className="living-ring-cyan drop-shadow-[0_0_12px_rgba(76,215,246,0.8)] transition-all duration-1000 ease-out"
+                cx="50" cy="50" fill="none" r="45" stroke="#4cd7f6" strokeWidth="4.5"
+                strokeDasharray="282.7"
+                strokeDashoffset={282.7 - Math.min(studyMins / 240, 1) * 282.7}
+                strokeLinecap="round"
+              />
+            </svg>
+
+            {/* Middle Ring: Fitness (Orange) */}
+            <svg className="absolute inset-3 sm:inset-4 w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] h-[calc(100%-1.5rem)] sm:h-[calc(100%-2rem)] circular-progress" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" fill="none" r="40" stroke="rgba(255,255,255,0.06)" strokeWidth="4.5" />
+              <circle
+                className="living-ring-orange drop-shadow-[0_0_12px_rgba(236,106,6,0.8)] transition-all duration-1000 ease-out delay-100"
+                cx="50" cy="50" fill="none" r="40" stroke="#ec6a06" strokeWidth="4.5"
+                strokeDasharray="251.2"
+                strokeDashoffset={251.2 - Math.min((metrics?.calories_burned ?? 2150) / 2500, 1) * 251.2}
+                strokeLinecap="round"
+              />
+            </svg>
+
+            {/* Inner Ring: Sleep (Violet) */}
+            <svg className="absolute inset-6 sm:inset-8 w-[calc(100%-3rem)] sm:w-[calc(100%-4rem)] h-[calc(100%-3rem)] sm:h-[calc(100%-4rem)] circular-progress" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" fill="none" r="35" stroke="rgba(255,255,255,0.06)" strokeWidth="4.5" />
+              <circle
+                className="living-ring-violet drop-shadow-[0_0_8px_rgba(179,149,255,0.6)] transition-all duration-1000 ease-out delay-200"
+                cx="50" cy="50" fill="none" r="35" stroke="#b395ff" strokeWidth="4.5"
+                strokeDasharray="219.9"
+                strokeDashoffset={219.9 - Math.min(sleepHrs / 8, 1) * 219.9}
+                strokeLinecap="round"
+              />
+            </svg>
+
+            {/* Center Recovery Score Badge */}
+            <div className="flex flex-col items-center justify-center text-center z-10 bg-surface-container/70 backdrop-blur-xl rounded-full w-32 h-32 sm:w-40 sm:h-40 border border-white/15 shadow-[inset_0_0_20px_rgba(76,215,246,0.15)] pulse-center">
+              {mLoading ? (
+                <motion.div animate={{ opacity: [0.4, 0.8, 0.4] }} transition={{ duration: 1.5, repeat: Infinity }} className="w-12 h-8 bg-white/20 rounded-md" />
+              ) : (
+                <span className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight drop-shadow-[0_0_10px_rgba(76,215,246,0.4)]">
+                  {recoveryScore}
+                </span>
+              )}
+              <span className="font-mono text-[10px] sm:text-xs text-primary font-bold tracking-widest uppercase mt-0.5">
+                RECOVERY SCORE
+              </span>
+            </div>
+          </div>
+
+          {/* Legend Indicators */}
+          <div className="flex items-center gap-4 mt-3 text-[11px] font-mono text-on-surface-variant">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_8px_#4cd7f6]" />
+              <span>Focus</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-secondary shadow-[0_0_8px_#ec6a06]" />
+              <span>Burn</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-tertiary shadow-[0_0_8px_#b395ff]" />
+              <span>Rest</span>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* Touch-Friendly Bento Actions */}
+        <motion.section variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <motion.button
+            variants={itemVariants}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={onOpenStudyModal}
+            className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 min-h-[110px] flex flex-col items-start justify-between text-left cursor-pointer border border-primary/20 hover:border-primary/50"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-transparent opacity-80" />
+            <span className="material-symbols-outlined text-primary text-3xl z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
+              menu_book
+            </span>
+            <span className="font-bold text-sm text-white z-10">Log Study</span>
+          </motion.button>
+
+          <motion.button
+            variants={itemVariants}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={onOpenWorkoutModal}
+            className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 min-h-[110px] flex flex-col items-start justify-between text-left cursor-pointer border border-secondary/20 hover:border-secondary/50"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary/15 to-transparent opacity-80" />
+            <span className="material-symbols-outlined text-secondary text-3xl z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
+              fitness_center
+            </span>
+            <span className="font-bold text-sm text-white z-10">Log Workout</span>
+          </motion.button>
+
+          <motion.button
+            variants={itemVariants}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={onOpenSleepModal}
+            className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 min-h-[110px] flex flex-col items-start justify-between text-left cursor-pointer border border-tertiary/20 hover:border-tertiary/50"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-tertiary/15 to-transparent opacity-80" />
+            <span className="material-symbols-outlined text-tertiary text-3xl z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
+              bedtime
+            </span>
+            <span className="font-bold text-sm text-white z-10">Log Sleep</span>
+          </motion.button>
+
+          <motion.button
+            variants={itemVariants}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={onOpenNutritionModal}
+            className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 min-h-[110px] flex flex-col items-start justify-between text-left cursor-pointer border border-secondary/20 hover:border-secondary/50"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary/15 to-transparent opacity-80" />
+            <span className="material-symbols-outlined text-secondary text-3xl z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
+              restaurant
+            </span>
+            <span className="font-bold text-sm text-white z-10">Log Meal</span>
+          </motion.button>
+        </motion.section>
+
+        {/* KPI Tiles */}
+        <motion.section variants={containerVariants} className="grid grid-cols-3 gap-3">
+          <motion.div variants={itemVariants} className="glass-panel rounded-2xl p-4 flex flex-col items-center justify-center text-center">
+            <span className="material-symbols-outlined text-primary text-xl mb-1">timer</span>
+            <span className="text-xl sm:text-2xl text-white font-extrabold">
+              {sLoading ? "…" : studyMins}
+              <span className="text-xs font-normal text-on-surface-variant ml-0.5">m</span>
+            </span>
+            <span className="font-mono text-[10px] text-on-surface-variant uppercase mt-0.5">Focus Today</span>
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="glass-panel rounded-2xl p-4 flex flex-col items-center justify-center text-center">
+            <span className="material-symbols-outlined text-secondary text-xl mb-1">local_fire_department</span>
+            <span className="text-xl sm:text-2xl text-white font-extrabold">
+              {wLoading ? "…" : (metrics?.calories_burned ?? workoutCals)}
+              <span className="text-xs font-normal text-on-surface-variant ml-0.5">kcal</span>
+            </span>
+            <span className="font-mono text-[10px] text-on-surface-variant uppercase mt-0.5">Calories Burned</span>
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="glass-panel rounded-2xl p-4 flex flex-col items-center justify-center text-center">
+            <span className="material-symbols-outlined text-tertiary text-xl mb-1">bedtime</span>
+            <span className="text-xl sm:text-2xl text-white font-extrabold">
+              {slLoading ? "…" : sleepHrs}
+              <span className="text-xs font-normal text-on-surface-variant ml-0.5">h</span>
+            </span>
+            <span className="font-mono text-[10px] text-on-surface-variant uppercase mt-0.5">Sleep Duration</span>
+          </motion.div>
+        </motion.section>
+
+        {/* Phase 2: Progressive Rings & Habit Tracker */}
         <motion.div variants={containerVariants} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 flex flex-col gap-6">
             <HabitTrackerWidget />
@@ -185,11 +319,6 @@ function DashboardView({
               streakDays={maxStreakDays}
             />
             <HydrationWidget />
-            {/* HOLD-TO-COMMIT 1.5S PRESS BUTTON */}
-            <HoldToCommitButton
-              label="Hold 1.5s to Commit Day Goals"
-              onCommit={() => console.log("Day committed successfully!")}
-            />
           </div>
         </motion.div>
 
@@ -1040,8 +1169,31 @@ export default function Home() {
         </motion.div>
       </main>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <MobileBottomNav active={activeTab} onNav={(tab) => setActiveTab(tab)} />
+      {/* Sleek Floating Bottom Navigation Bar (Mobile ONLY) */}
+      <nav className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 w-[94%] max-w-lg rounded-full bg-surface-dim/95 backdrop-blur-2xl border border-white/15 shadow-[0_12px_40px_rgba(0,0,0,0.7)] z-50 flex items-center justify-around px-2 py-1.5 overflow-x-auto no-scrollbar">
+        {[
+          { id: "dashboard", label: "Home", icon: "dashboard" },
+          { id: "study", label: "Study", icon: "menu_book" },
+          { id: "fitness", label: "Fit", icon: "fitness_center" },
+          { id: "health", label: "Health", icon: "ecg_heart" },
+          { id: "routines", label: "Habits", icon: "published_with_changes" },
+          { id: "nutrition", label: "Fuel", icon: "restaurant" },
+          { id: "goals", label: "Goals", icon: "insights" },
+        ].map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-2 py-1 rounded-full transition-all active:scale-95 shrink-0 ${
+              activeTab === item.id
+                ? "bg-primary/20 text-primary shadow-[0_0_12px_rgba(76,215,246,0.4)]"
+                : "text-on-surface-variant hover:text-white"
+            }`}
+          >
+            <span className="material-symbols-outlined text-lg leading-none">{item.icon}</span>
+            <span className="text-[9px] font-semibold mt-0.5 leading-none">{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
