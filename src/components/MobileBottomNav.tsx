@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { LayoutDashboard, Flame, BookOpen, CheckCircle2, Target } from "lucide-react";
+import { LayoutDashboard, CheckCircle2, Brain, Target, User } from "lucide-react";
 
 interface NavItem {
   id: string;
@@ -10,11 +10,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "overview", label: "Home", icon: <LayoutDashboard className="w-5 h-5" /> },
-  { id: "fitness", label: "Fitness", icon: <Flame className="w-5 h-5" /> },
-  { id: "study", label: "Study", icon: <BookOpen className="w-5 h-5" /> },
-  { id: "routines", label: "Habits", icon: <CheckCircle2 className="w-5 h-5" /> },
+  { id: "home", label: "Home", icon: <LayoutDashboard className="w-5 h-5" /> },
+  { id: "track", label: "Track", icon: <CheckCircle2 className="w-5 h-5" /> },
+  { id: "insights", label: "Insights", icon: <Brain className="w-5 h-5" /> },
   { id: "goals", label: "Goals", icon: <Target className="w-5 h-5" /> },
+  { id: "profile", label: "Profile", icon: <User className="w-5 h-5" /> },
 ];
 
 interface MobileBottomNavProps {

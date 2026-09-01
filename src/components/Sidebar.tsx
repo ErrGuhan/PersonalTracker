@@ -1,21 +1,20 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap, Flame, BookOpen, Heart, Target, LayoutDashboard } from "lucide-react";
+import { Zap, Flame, BookOpen, Heart, Target, LayoutDashboard, Brain, User, CheckCircle2 } from "lucide-react";
 
 interface NavItem {
   id: string;
   icon: React.ReactNode;
   label: string;
-  accent?: "cyan" | "orange" | "violet";
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "overview", icon: <LayoutDashboard className="w-4 h-4" />, label: "Overview", accent: "cyan" },
-  { id: "fitness", icon: <Flame className="w-4 h-4" />, label: "Fitness", accent: "orange" },
-  { id: "study", icon: <BookOpen className="w-4 h-4" />, label: "Study", accent: "cyan" },
-  { id: "health", icon: <Heart className="w-4 h-4" />, label: "Health", accent: "violet" },
-  { id: "goals", icon: <Target className="w-4 h-4" />, label: "Goals", accent: "cyan" },
+  { id: "home", icon: <LayoutDashboard className="w-4 h-4" />, label: "Home" },
+  { id: "track", icon: <CheckCircle2 className="w-4 h-4" />, label: "Track" },
+  { id: "insights", icon: <Brain className="w-4 h-4" />, label: "Insights" },
+  { id: "goals", icon: <Target className="w-4 h-4" />, label: "Goals" },
+  { id: "profile", icon: <User className="w-4 h-4" />, label: "Profile" },
 ];
 
 interface SidebarProps {
