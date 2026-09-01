@@ -613,10 +613,6 @@ function HealthView({
 function RoutinesView() {
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-6 w-full pb-32 lg:pb-12">
-      <motion.div variants={itemVariants}>
-        <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">Daily Routines & Habits</h2>
-        <p className="text-xs sm:text-sm text-slate-400 mt-0.5">Track your daily wins and build lasting habits.</p>
-      </motion.div>
       <HabitTrackerWidget />
     </motion.div>
   );
@@ -924,7 +920,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-on-background relative overflow-x-hidden">
+    <div className="flex-1 flex flex-col h-full w-full relative overflow-hidden bg-background text-on-background">
       {/* Toast Notification Banner */}
       <ToastNotification message={toastMsg} onClear={() => setToastMsg(null)} />
 
@@ -1078,9 +1074,16 @@ export default function Home() {
         onOpenSearch={() => setShowCommandPalette(true)}
       />
 
-      {/* Main Content Area — Aggressive Whitespace Padding */}
-      <main className="pt-24 sm:pt-28 px-6 sm:px-12 pb-36 lg:pb-16 max-w-[1440px] lg:ml-72 w-full overflow-x-hidden">
-        <motion.div drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.15} onDragEnd={handleDragEnd} className="touch-pan-y w-full">
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto pt-24 sm:pt-28 px-6 sm:px-12 pb-24 lg:pb-16 max-w-[1440px] lg:ml-72 w-full scroll-smooth">
+        <motion.div
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.15}
+          onDragEnd={handleDragEnd}
+          style={{ touchAction: "pan-y" }}
+          className="touch-pan-y w-full"
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}

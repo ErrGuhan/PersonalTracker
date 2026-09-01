@@ -70,16 +70,13 @@ img, svg, video, canvas, iframe {
 
 html {
   scroll-behavior: smooth;
-  overscroll-behavior-y: none;
 }
 
 html, body {
   background-color: #0f131c;
   color: #dfe2ee;
-  min-height: 100vh;
-  overflow-x: hidden;
-  overscroll-behavior-y: none;
-  touch-action: manipulation;
+  height: 100%;
+  touch-action: pan-x pan-y;
 }
 
 /* Glassmorphism utility classes — Weightless Frosted Glass */

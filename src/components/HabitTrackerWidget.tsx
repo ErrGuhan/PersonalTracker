@@ -98,7 +98,7 @@ export default function HabitTrackerWidget() {
             onClick={() => (showAddForm ? setShowAddForm(false) : handleOpenAdd())}
             className="flex items-center gap-1.5 text-xs bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 px-3.5 py-1.5 rounded-xl hover:bg-cyan-500/25 transition font-semibold cursor-pointer shadow-[0_0_12px_rgba(6,182,212,0.25)]"
           >
-            <Plus className="w-4 h-4" />
+            {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {showAddForm ? "Cancel" : "New Habit"}
           </motion.button>
         </div>
@@ -129,18 +129,22 @@ export default function HabitTrackerWidget() {
       <AnimatePresence>
         {showAddForm && (
           <motion.form
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
             onSubmit={handleFormSubmit}
-            className="bg-slate-900/80 p-4 rounded-xl border border-cyan-500/30 flex flex-col gap-3.5 overflow-hidden shadow-inner"
+            className="bg-[#0F172A]/80 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-5 overflow-hidden flex flex-col gap-4 shadow-xl"
           >
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-cyan-400 uppercase font-mono tracking-wider">
                 {editingHabitId ? "Edit Habit Routine" : "Create New Habit"}
               </span>
-              <button type="button" onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="text-slate-400 hover:text-white transition cursor-pointer p-1 rounded-lg hover:bg-white/10"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -149,34 +153,37 @@ export default function HabitTrackerWidget() {
               type="text"
               placeholder="What habit do you want to build? (e.g., Read 20 mins)"
               required
-              className="w-full bg-transparent border-b border-white/20 text-sm px-2 py-2 text-white outline-none focus:border-cyan-400 placeholder:text-slate-500 transition"
+              className="bg-transparent border-b border-white/10 focus:border-cyan-400 transition-colors py-3 w-full outline-none text-white placeholder:text-slate-500"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
-            <div className="flex justify-between items-center pt-1">
-              <div className="flex gap-1.5">
+
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-2">Category</label>
+              <div className="flex flex-wrap gap-2 mb-4">
                 {(["health", "fitness", "focus", "mindset"] as const).map((cat) => (
                   <button
                     key={cat}
                     type="button"
                     onClick={() => setCategory(cat)}
-                    className={`px-2.5 py-1 rounded-lg capitalize text-[10px] font-mono border transition ${
+                    className={`px-3 py-1.5 rounded-xl capitalize text-xs font-medium border transition-all cursor-pointer ${
                       category === cat
-                        ? "border-cyan-400 bg-cyan-500/20 text-cyan-400 font-bold"
-                        : "border-white/10 text-slate-400 hover:text-white"
+                        ? "border-cyan-400/60 bg-cyan-500/20 text-cyan-300 font-bold shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+                        : "border-white/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
                     }`}
                   >
                     {cat}
                   </button>
                 ))}
               </div>
-              <button
-                type="submit"
-                className="px-4 py-1.5 rounded-lg bg-cyan-400 text-slate-950 font-bold text-xs shadow-md hover:bg-cyan-300 transition cursor-pointer"
-              >
-                {editingHabitId ? "Update Habit" : "Save Habit"}
-              </button>
             </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer"
+            >
+              {editingHabitId ? "Update Habit" : "Save Habit"}
+            </button>
           </motion.form>
         )}
       </AnimatePresence>

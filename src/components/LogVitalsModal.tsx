@@ -43,15 +43,16 @@ export default function LogVitalsModal({ onClose, onSaved }: LogVitalsModalProps
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-md"
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: "spring", stiffness: 350, damping: 25 }}
-        className="w-full max-w-lg rounded-2xl bg-gradient-to-b from-surface-container-high/90 to-surface-dim/95 border-t border-white/10 border-b border-black/40 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl text-on-surface space-y-5"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="w-full max-w-md max-h-[85vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] rounded-2xl bg-gradient-to-b from-surface-container-high/90 to-surface-dim/95 border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl text-on-surface space-y-5"
       >
         <div className="flex items-center justify-between">
           <div>

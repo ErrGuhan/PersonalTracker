@@ -138,15 +138,15 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: "spring", stiffness: 350, damping: 26 }}
-        className="w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl bg-gradient-to-b from-surface-container-high/95 to-surface-dim/98 border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-on-surface overflow-hidden relative"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="w-full max-w-md max-h-[85vh] flex flex-col rounded-2xl bg-gradient-to-b from-surface-container-high/95 to-surface-dim/98 border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-on-surface overflow-hidden relative"
       >
         {/* Top Header & Mode Toggle with Proper Flex Alignment & Gap */}
         <div className="flex flex-row items-center justify-between gap-4 border-b border-white/10 pb-4 shrink-0">
@@ -208,8 +208,8 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
           </div>
         </div>
 
-        {/* Scrollable Container with Strict max-h-[70vh], pb-32, and Hidden Scrollbars */}
-        <div className="overflow-y-auto max-h-[70vh] pr-1 pt-4 pb-32 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex-1">
+        {/* Scrollable Container with Hidden Scrollbars */}
+        <div className="overflow-y-auto max-h-[65vh] pr-1 pt-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex-1">
           {mode === "ai" && (
             <AnimatePresence mode="wait">
               {/* STATE 1: PROMPT INPUT */}
