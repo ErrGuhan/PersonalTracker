@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import PwaRegister from "@/components/PwaRegister";
-import GoogleAnalytics from "@/components/GoogleAnalytics";
 import { AuthProvider } from "@/context/AuthProvider";
-import { ThemeProvider } from "@/context/ThemeContext";
 import "./globals.css";
 
 const inter = Inter({
@@ -59,13 +57,10 @@ export default function RootLayout({
         <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js" async defer />
       </head>
       <body className="flex flex-col h-[100dvh] w-full overflow-hidden bg-[#0B0F17] text-white antialiased">
-        <GoogleAnalytics />
-        <ThemeProvider>
-          <AuthProvider>
-            <PwaRegister />
-            {children}
-          </AuthProvider>
-        </ThemeProvider>
+        <AuthProvider>
+          <PwaRegister />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
