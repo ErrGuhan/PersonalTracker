@@ -19,7 +19,7 @@ import AuthModal from "@/components/AuthModal";
 import StudyHeatmap from "@/components/StudyHeatmap";
 import MoodSelector from "@/components/MoodSelector";
 import FocusTimer from "@/components/FocusTimer";
-import SleepBar from "@/components/SleepBar";
+import HealthIntelligenceCenter from "@/components/health/HealthIntelligenceCenter";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useHealthMetrics,
@@ -92,12 +92,14 @@ function DashboardView({
   onOpenWorkoutModal,
   onOpenStudyModal,
   onOpenSleepModal,
+  onOpenVitalsModal,
   onOpenNutritionModal,
 }: {
   onNav: (tab: string) => void;
   onOpenWorkoutModal: () => void;
   onOpenStudyModal: () => void;
   onOpenSleepModal: () => void;
+  onOpenVitalsModal: () => void;
   onOpenNutritionModal: () => void;
 }) {
   const { metrics, loading: mLoading } = useHealthMetrics();
@@ -205,7 +207,7 @@ function DashboardView({
         </motion.section>
 
         {/* Touch-Friendly Bento Actions */}
-        <motion.section variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <motion.section variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <motion.button
             variants={itemVariants}
             whileHover={{ scale: 1.02, y: -2 }}
@@ -252,8 +254,25 @@ function DashboardView({
             variants={itemVariants}
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.96 }}
+            onClick={onOpenVitalsModal}
+            className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 min-h-[110px] flex flex-col items-start justify-between text-left cursor-pointer border border-primary/30 hover:border-primary/60 shadow-[0_0_15px_rgba(76,215,246,0.15)]"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-90" />
+            <span className="material-symbols-outlined text-primary text-3xl z-10 animate-pulse" style={{ fontVariationSettings: "'FILL' 1" }}>
+              ecg_heart
+            </span>
+            <div>
+              <span className="font-bold text-sm text-white z-10 block">Log Vitals</span>
+              <span className="text-[10px] font-mono text-primary z-10">HR · HRV · SpO₂</span>
+            </div>
+          </motion.button>
+
+          <motion.button
+            variants={itemVariants}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.96 }}
             onClick={onOpenNutritionModal}
-            className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 min-h-[110px] flex flex-col items-start justify-between text-left cursor-pointer border border-secondary/20 hover:border-secondary/50"
+            className="tilt-card glass-panel relative overflow-hidden rounded-2xl p-4 min-h-[110px] flex flex-col items-start justify-between text-left cursor-pointer border border-secondary/20 hover:border-secondary/50 col-span-2 sm:col-span-1"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-secondary/15 to-transparent opacity-80" />
             <span className="material-symbols-outlined text-secondary text-3xl z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -543,108 +562,20 @@ function StudyView({ onOpenStudyModal }: { onOpenStudyModal: () => void }) {
 }
 
 /* ─────────────────────────────────────────────────────────
-   4. HEALTH ANALYTICS VIEW
+   4. HEALTH INTELLIGENCE CENTER VIEW
    ───────────────────────────────────────────────────────── */
 function HealthView({
   onOpenSleepModal,
-  onOpenVitalsModal,
+  onShowToast,
 }: {
   onOpenSleepModal: () => void;
-  onOpenVitalsModal: () => void;
+  onShowToast?: (msg: string) => void;
 }) {
-  const { metrics, loading: mLoading } = useHealthMetrics();
-  const { data: latestSleep, loading: sLoading } = useLatestSleep();
-  const { submitMood, moodScore } = useLatestMood();
-
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-6 w-full">
-      <motion.div variants={itemVariants} className="flex justify-between items-end">
-        <div>
-          <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">Health & Recovery</h2>
-          <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">Circadian Rhythm & Vital Signs Analysis</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={onOpenVitalsModal}
-            className="px-3.5 py-2 rounded-xl bg-primary/20 border border-primary/40 text-primary font-semibold text-xs hover:bg-primary/30 transition cursor-pointer"
-          >
-            + Log Vitals
-          </button>
-          <button
-            onClick={onOpenSleepModal}
-            className="px-3.5 py-2 rounded-xl bg-tertiary/20 border border-tertiary/40 text-tertiary font-semibold text-xs hover:bg-tertiary/30 transition cursor-pointer"
-          >
-            + Log Sleep
-          </button>
-        </div>
-      </motion.div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <motion.div variants={itemVariants} className="glass-panel p-5 sm:p-6 rounded-2xl border-t-2 border-tertiary">
-          <h3 className="font-bold text-sm sm:text-base text-white mb-4">Last Night&apos;s Sleep</h3>
-          {sLoading ? (
-            <div className="h-28 bg-white/10 rounded-xl" />
-          ) : (
-            <SleepBar
-              hours={latestSleep?.hours ?? 7.8}
-              target={8}
-              stages={
-                latestSleep
-                  ? {
-                      deep: latestSleep.deep_pct,
-                      light: latestSleep.light_pct,
-                      rem: latestSleep.rem_pct,
-                      awake: latestSleep.awake_pct,
-                    }
-                  : undefined
-              }
-            />
-          )}
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="glass-panel p-5 sm:p-6 rounded-2xl border-t-2 border-tertiary flex flex-col items-center justify-center text-center">
-          <h3 className="font-bold text-sm sm:text-base text-white mb-4">Body Recovery Score</h3>
-          <div className="w-32 h-32 rounded-full bg-surface-container/70 border-2 border-tertiary/50 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(179,149,255,0.3)]">
-            <span className="text-3xl font-extrabold text-tertiary">{metrics?.recovery_score ?? 88}%</span>
-            <span className="text-[10px] text-on-surface-variant font-mono uppercase">OPTIMAL</span>
-          </div>
-          <p className="text-xs text-on-surface-variant mt-4">
-            System fully restored. High readiness for intensive deep work and output.
-          </p>
-        </motion.div>
-      </div>
-
-      <motion.div variants={containerVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <motion.div variants={itemVariants} className="glass-panel p-4 rounded-2xl text-center">
-          <span className="material-symbols-outlined text-tertiary text-xl mb-1">ecg_heart</span>
-          <p className="text-lg sm:text-2xl font-extrabold text-white">{mLoading ? "…" : (metrics?.hrv_ms ?? 72)} ms</p>
-          <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">HRV Score</p>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="glass-panel p-4 rounded-2xl text-center">
-          <span className="material-symbols-outlined text-tertiary text-xl mb-1">air</span>
-          <p className="text-lg sm:text-2xl font-extrabold text-white">{mLoading ? "…" : (metrics?.spo2 ?? 99)}%</p>
-          <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">SpO₂ Level</p>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="glass-panel p-4 rounded-2xl text-center">
-          <span className="material-symbols-outlined text-tertiary text-xl mb-1">device_thermostat</span>
-          <p className="text-lg sm:text-2xl font-extrabold text-white">{mLoading ? "…" : (metrics?.body_temp ?? 36.6)}°C</p>
-          <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">Body Temp</p>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="glass-panel p-4 rounded-2xl text-center">
-          <span className="material-symbols-outlined text-tertiary text-xl mb-1">psychology</span>
-          <p className="text-lg sm:text-2xl font-extrabold text-white">{mLoading ? "…" : (metrics?.stress_pct ?? 22)}%</p>
-          <p className="text-[10px] text-on-surface-variant font-mono uppercase mt-1">Stress Level</p>
-        </motion.div>
-      </motion.div>
-
-      <motion.div variants={itemVariants} className="glass-panel p-5 rounded-2xl">
-        <h3 className="font-bold text-sm sm:text-base text-white mb-4">Mental Check-In</h3>
-        <MoodSelector initialScore={moodScore ?? undefined} onSelect={submitMood} />
-      </motion.div>
-    </motion.div>
+    <HealthIntelligenceCenter
+      onOpenSleepModal={onOpenSleepModal}
+      onShowToast={onShowToast}
+    />
   );
 }
 
@@ -927,6 +858,7 @@ export default function Home() {
             onOpenWorkoutModal={() => setShowWorkoutModal(true)}
             onOpenStudyModal={() => setShowStudyModal(true)}
             onOpenSleepModal={() => setShowSleepModal(true)}
+            onOpenVitalsModal={() => setShowVitalsModal(true)}
             onOpenNutritionModal={() => setShowNutritionModal(true)}
           />
         );
@@ -938,7 +870,7 @@ export default function Home() {
         return (
           <HealthView
             onOpenSleepModal={() => setShowSleepModal(true)}
-            onOpenVitalsModal={() => setShowVitalsModal(true)}
+            onShowToast={showToast}
           />
         );
       case "routines":
@@ -954,6 +886,7 @@ export default function Home() {
             onOpenWorkoutModal={() => setShowWorkoutModal(true)}
             onOpenStudyModal={() => setShowStudyModal(true)}
             onOpenSleepModal={() => setShowSleepModal(true)}
+            onOpenVitalsModal={() => setShowVitalsModal(true)}
             onOpenNutritionModal={() => setShowNutritionModal(true)}
           />
         );

@@ -13,6 +13,10 @@ import {
   getLatestSleep,
   logSleep,
   getWeeklySleep,
+  getSleepHistory,
+  getAiProfile,
+  updateAiProfile as updateAiProfileDb,
+  setAiPersonalizationEnabled as setAiPersonalizationDb,
   getGoals,
   updateGoalProgress,
   createGoal,
@@ -33,7 +37,7 @@ import {
   DEMO_USER_ID,
   type StudyStats,
 } from "@/lib/db";
-import type { HealthMetric, Workout, Goal, SleepLog, Habit, HydrationLog, MealLog } from "@/lib/database.types";
+import type { HealthMetric, Workout, Goal, SleepLog, Habit, HydrationLog, MealLog, AiUserProfile } from "@/lib/database.types";
 
 // ─────────────────────────────────────────────────────────
 // Generic async hook factory with local broadcast listener
@@ -229,6 +233,11 @@ export function useWeeklySleep() {
   return useAsync(getWeeklySleep);
 }
 
+export function useSleepHistory(days = 30) {
+  const fetcher = useCallback(() => getSleepHistory(days), [days]);
+  return useAsync(fetcher);
+}
+
 export function useLogSleep() {
   const [saving, setSaving] = useState(false);
   const save = useCallback(async (sleep: Omit<SleepLog, "id" | "user_id" | "created_at">) => {
@@ -238,6 +247,55 @@ export function useLogSleep() {
     return result;
   }, []);
   return { logSleep: save, saving };
+}
+
+export function useAiProfile() {
+  const [profile, setProfile] = useState<AiUserProfile>(() =>
+    typeof window !== "undefined" ? getAiProfile() : {
+      goals: [],
+      preferredWakeTime: "06:30",
+      preferredSleepTime: "22:45",
+      availableDailyTimeMinutes: 180,
+      preferredWorkoutStyle: "hybrid",
+      planningStyle: "structured",
+      motivationStyle: "analytical",
+      difficultyPreference: "gradual",
+      preferredSessionDurationMin: 45,
+      schedulePreferences: "",
+      currentPriorities: [],
+      personalizationEnabled: true,
+    }
+  );
+
+  const refresh = useCallback(() => {
+    setProfile(getAiProfile());
+  }, []);
+
+  useEffect(() => {
+    const handleUpdate = () => refresh();
+    if (typeof window !== "undefined") {
+      window.addEventListener("lifesync-db-update", handleUpdate);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("lifesync-db-update", handleUpdate);
+      }
+    };
+  }, [refresh]);
+
+  const update = useCallback((updates: Partial<AiUserProfile>) => {
+    const updated = updateAiProfileDb(updates);
+    setProfile(updated);
+    return updated;
+  }, []);
+
+  const togglePersonalization = useCallback((enabled: boolean) => {
+    const updated = setAiPersonalizationDb(enabled);
+    setProfile(updated);
+    return updated;
+  }, []);
+
+  return { profile, updateProfile: update, togglePersonalization, refetch: refresh };
 }
 
 // ─────────────────────────────────────────────────────────

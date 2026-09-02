@@ -10,12 +10,28 @@ import type {
   Habit,
   HydrationLog,
   MealLog,
+  AiUserProfile,
 } from "./database.types";
 
 export const PRIMARY_USER_EMAIL = "guhan24td0781@svcet.ac.in";
 export const DEMO_USER_ID = "guhan-24td0781-svcet-ac-in";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
+
+export const INITIAL_AI_PROFILE: AiUserProfile = {
+  goals: ["Improve sleep duration", "Sustain daily focus", "Moderate athletic conditioning"],
+  preferredWakeTime: "06:30",
+  preferredSleepTime: "22:45",
+  availableDailyTimeMinutes: 180,
+  preferredWorkoutStyle: "hybrid",
+  planningStyle: "structured",
+  motivationStyle: "analytical",
+  difficultyPreference: "gradual",
+  preferredSessionDurationMin: 45,
+  schedulePreferences: "Morning deep work sessions, early evening physical training",
+  currentPriorities: ["Sleep consistency", "Cognitive output", "Recovery optimization"],
+  personalizationEnabled: true,
+};
 
 // Zero-State Initial Baseline Configurations for Brand New User
 const INITIAL_HEALTH_METRICS: HealthMetric = {
@@ -474,6 +490,8 @@ export async function logSleep(
   };
 
   setLocal("sleep_log", newSleep);
+  const currentList = getLocal<SleepLog[]>("sleep_logs_list", []);
+  setLocal("sleep_logs_list", [newSleep, ...currentList.filter(s => s.id !== newSleep.id)]);
 
   // Recalculate dynamic recovery score
   const currentMetrics = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
@@ -512,6 +530,51 @@ export async function getWeeklySleep(): Promise<SleepLog[]> {
     console.warn("[DB] weekly sleep fallback to local:", err);
   }
   return getLocal<SleepLog[]>("sleep_logs_list", []);
+}
+
+export async function getSleepHistory(days = 30): Promise<SleepLog[]> {
+  const userId = await getActiveUserId();
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const { data, error } = await supabase
+      .from("sleep_logs")
+      .select("*")
+      .eq("user_id", userId)
+      .gte("sleep_date", since.toISOString().split("T")[0])
+      .order("sleep_date", { ascending: true });
+
+    if (!error && data && data.length > 0) return data as SleepLog[];
+  } catch (err) {
+    console.warn("[DB] sleep history fallback to local:", err);
+  }
+  const localList = getLocal<SleepLog[]>("sleep_logs_list", []);
+  if (localList.length > 0) return localList;
+  const latest = getLocal("sleep_log", INITIAL_SLEEP_LOG);
+  return latest.hours > 0 ? [latest] : [];
+}
+
+// ─────────────────────────────────────────────────────────
+// AI USER PROFILE & PREFERENCES
+// ─────────────────────────────────────────────────────────
+
+export function getAiProfile(): AiUserProfile {
+  return getLocal<AiUserProfile>("ai_profile", INITIAL_AI_PROFILE);
+}
+
+export function updateAiProfile(updates: Partial<AiUserProfile>): AiUserProfile {
+  const current = getAiProfile();
+  const updated = { ...current, ...updates };
+  return setLocal<AiUserProfile>("ai_profile", updated);
+}
+
+export function clearAiProfile(): AiUserProfile {
+  return setLocal<AiUserProfile>("ai_profile", INITIAL_AI_PROFILE);
+}
+
+export function setAiPersonalizationEnabled(enabled: boolean): AiUserProfile {
+  return updateAiProfile({ personalizationEnabled: enabled });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -705,6 +768,7 @@ export function exportAllDataJSON(): string {
     habits: getLocal("habits", INITIAL_HABITS),
     hydration: getLocal("hydration", INITIAL_HYDRATION),
     meals: getLocal("meals", INITIAL_MEALS),
+    aiProfile: getLocal("ai_profile", INITIAL_AI_PROFILE),
   };
   return JSON.stringify(data, null, 2);
 }
@@ -716,10 +780,12 @@ export function resetAllDataToDefault() {
     localStorage.removeItem("lifesync_study_sessions");
     localStorage.removeItem("lifesync_mood_log");
     localStorage.removeItem("lifesync_sleep_log");
+    localStorage.removeItem("lifesync_sleep_logs_list");
     localStorage.removeItem("lifesync_goals");
     localStorage.removeItem("lifesync_habits");
     localStorage.removeItem("lifesync_hydration");
     localStorage.removeItem("lifesync_meals");
+    localStorage.removeItem("lifesync_ai_profile");
     notifyUpdate();
   }
 }

@@ -83,6 +83,11 @@ export interface Database {
           awake_pct: number;
           sleep_date: string;
           created_at: string;
+          bedtime?: string | null;
+          wake_time?: string | null;
+          quality?: number | null;
+          rested_rating?: number | null;
+          notes?: string | null;
         };
         Insert: Omit<Database["public"]["Tables"]["sleep_logs"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["sleep_logs"]["Insert"]>;
@@ -145,5 +150,20 @@ export interface MealLog {
   carbsG: number;
   fatsG: number;
   loggedAt: string;
+}
+
+export interface AiUserProfile {
+  goals: string[];
+  preferredWakeTime: string;       // e.g. "06:30"
+  preferredSleepTime: string;      // e.g. "23:00"
+  availableDailyTimeMinutes: number; // e.g. 180
+  preferredWorkoutStyle: "strength" | "hiit" | "cardio" | "yoga" | "hybrid";
+  planningStyle: "structured" | "flexible" | "minimalist";
+  motivationStyle: "direct" | "encouraging" | "analytical";
+  difficultyPreference: "gradual" | "challenging" | "moderate";
+  preferredSessionDurationMin: number;
+  schedulePreferences: string;
+  currentPriorities: string[];
+  personalizationEnabled: boolean;
 }
 
