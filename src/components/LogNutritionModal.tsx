@@ -14,17 +14,19 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
   const router = useRouter();
   const { logMeal } = useNutrition();
 
-  // Form State
+  // Form State — Clean zero initial values (no hardcoded nutrition defaults)
   const [mealCategory, setMealCategory] = useState<"breakfast" | "lunch" | "dinner" | "snack">("lunch");
   const [mealDescription, setMealDescription] = useState("");
-  const [calories, setCalories] = useState<number>(550);
-  const [protein, setProtein] = useState<number>(40);
-  const [carbs, setCarbs] = useState<number>(50);
-  const [fats, setFats] = useState<number>(15);
+  const [calories, setCalories] = useState<number>(0);
+  const [protein, setProtein] = useState<number>(0);
+  const [carbs, setCarbs] = useState<number>(0);
+  const [fats, setFats] = useState<number>(0);
 
-  // AI Loading, Assumptions & Saved States
+  // AI Loading, Assumptions, Errors & Saved States
   const [isEstimating, setIsEstimating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [assumptions, setAssumptions] = useState("");
+  const [estimateError, setEstimateError] = useState("");
   const [aiSuccess, setAiSuccess] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -37,6 +39,7 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
     setIsEstimating(true);
     setAiSuccess(false);
     setAssumptions("");
+    setEstimateError("");
 
     try {
       const result = await estimateNutritionAction(mealDescription);
@@ -47,28 +50,35 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
         setFats(result.fats);
         setAssumptions(result.assumptions);
         setAiSuccess(true);
+      } else {
+        setEstimateError(
+          result.error || "Nutrition estimate unavailable. Please enter macros manually."
+        );
       }
     } catch (err) {
       console.warn("[LogNutritionModal] AI Estimation failed:", err);
+      setEstimateError("Nutrition estimate unavailable. Please try again.");
     } finally {
       setIsEstimating(false);
     }
   };
 
   /* ─────────────────────────────────────────────────────────
-     2. SUBMISSION MUTATION
+     2. SUBMISSION MUTATION (IDEMPOTENT / DUPLICATE PROTECTED)
      ───────────────────────────────────────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving || saved) return;
 
+    setIsSaving(true);
     try {
       await logMeal({
         name: mealDescription.trim() || `${mealCategory.toUpperCase()} Meal`,
         mealType: mealCategory,
-        calories: Math.round(Number(calories)),
-        proteinG: Math.round(Number(protein)),
-        carbsG: Math.round(Number(carbs)),
-        fatsG: Math.round(Number(fats)),
+        calories: Math.max(0, Math.round(Number(calories) || 0)),
+        proteinG: Math.max(0, Math.round(Number(protein) || 0)),
+        carbsG: Math.max(0, Math.round(Number(carbs) || 0)),
+        fatsG: Math.max(0, Math.round(Number(fats) || 0)),
       });
 
       router.refresh();
@@ -77,6 +87,7 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
       onClose();
     } catch (err) {
       console.error("[Supabase logMeal Error]:", err);
+      setIsSaving(false);
     }
   };
 
@@ -163,6 +174,7 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
                 onChange={(e) => {
                   setMealDescription(e.target.value);
                   setAiSuccess(false);
+                  setEstimateError("");
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey && mealDescription.trim()) {
@@ -195,6 +207,10 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
             {isEstimating ? (
               <p className="text-xs text-cyan-400 font-mono mt-1.5 animate-pulse flex items-center gap-1">
                 <span>✨ Gemini AI analyzing nutritional profile & portion sizes…</span>
+              </p>
+            ) : estimateError ? (
+              <p className="text-xs text-amber-400 font-mono mt-1.5 flex items-start gap-1">
+                <span>⚠️ {estimateError}</span>
               </p>
             ) : assumptions ? (
               <p className="text-xs text-cyan-400 font-mono mt-1.5 flex items-start gap-1">
@@ -275,14 +291,16 @@ export default function LogNutritionModal({ onClose, onSaved }: LogNutritionModa
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={saved || isEstimating}
+            disabled={saved || isEstimating || isSaving || !mealDescription.trim()}
             className={`w-full py-3.5 rounded-xl font-extrabold text-sm transition-all duration-200 shadow-[0_0_20px_rgba(236,106,6,0.3)] active:scale-[0.98] ${
               saved
                 ? "bg-emerald-500 text-white"
+                : isSaving
+                ? "opacity-70 bg-secondary/60 text-slate-950 cursor-wait"
                 : "bg-gradient-to-r from-secondary-container via-secondary to-amber-500 text-slate-950 hover:shadow-[0_0_30px_rgba(236,106,6,0.5)] cursor-pointer"
             }`}
           >
-            {saved ? "✓ Meal Tracked to Supabase!" : "Save & Track Meal"}
+            {saved ? "✓ Meal Tracked to Supabase!" : isSaving ? "Saving Meal…" : "Save & Track Meal"}
           </button>
         </form>
       </div>
