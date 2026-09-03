@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLogWorkout } from "@/hooks/useSupabase";
+import { todayStr } from "@/lib/db";
 import { generateWorkoutAction, type AiWorkoutResult, type ExerciseItem } from "@/app/actions/generateWorkout";
 
 interface LogWorkoutModalProps {
@@ -47,7 +48,7 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
     distance_km: "",
     avg_heart_rate: "",
     notes: "",
-    workout_date: new Date().toISOString().split("T")[0],
+    workout_date: todayStr(),
   });
 
   /* ─────────────────────────────────────────────────────────
@@ -89,15 +90,13 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
         avg_heart_rate: 145,
         distance_km: null,
         notes: `AI Generated Routine:\n${exercisesNotes}`,
-        workout_date: new Date().toISOString().split("T")[0],
+        workout_date: todayStr(),
       });
 
       router.refresh();
       setSaved(true);
-      setTimeout(() => {
-        onSaved();
-        onClose();
-      }, 600);
+      onSaved();
+      onClose();
     } catch (err) {
       console.error("[Supabase logWorkout Error]:", err);
       setAiError("Failed to save workout to database.");
@@ -123,30 +122,20 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
 
       router.refresh();
       setSaved(true);
-      setTimeout(() => {
-        onSaved();
-        onClose();
-      }, 600);
+      onSaved();
+      onClose();
     } catch (err) {
       console.error("[Supabase logWorkout Error]:", err);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/65 p-0 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="w-full max-w-md max-h-[85vh] flex flex-col rounded-2xl bg-gradient-to-b from-surface-container-high/95 to-surface-dim/98 border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-on-surface overflow-hidden relative"
+      <div
+        className="modal-enter w-full max-w-md max-h-[88vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-gradient-to-b from-surface-container-high/95 to-surface-dim/98 border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-on-surface overflow-hidden relative"
       >
         {/* Top Header & Mode Toggle with Proper Flex Alignment & Gap */}
         <div className="flex flex-row items-center justify-between gap-4 border-b border-white/10 pb-4 shrink-0">
@@ -458,7 +447,7 @@ export default function LogWorkoutModal({ onClose, onSaved }: LogWorkoutModalPro
             </form>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

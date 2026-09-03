@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { useCreateGoal } from "@/hooks/useSupabase";
 import { updateGoal } from "@/lib/db";
 import type { Goal } from "@/lib/database.types";
@@ -66,10 +65,8 @@ export default function CreateGoalModal({
           accent: catObj?.accent || form.accent || "#4cd7f6",
         });
         setSaved(true);
-        setTimeout(() => {
-          onSaved(updated ?? undefined);
-          onClose();
-        }, 400);
+        onSaved(updated ?? undefined);
+        onClose();
       } else {
         const created = await createGoal({
           title: form.title.trim(),
@@ -78,14 +75,11 @@ export default function CreateGoalModal({
           progress: Number(form.progress),
           target_description: form.target_description || "Strategic Milestone",
           detail: form.detail || "Active goal tracker",
-          accent: catObj?.accent || "#4cd7f6",
+          accent: catObj?.accent || form.accent || "#4cd7f6",
         });
-        router.refresh();
         setSaved(true);
-        setTimeout(() => {
-          onSaved(created ?? undefined);
-          onClose();
-        }, 400);
+        onSaved(created ?? undefined);
+        onClose();
       }
     } catch (err: any) {
       console.error("[GoalModal Submit Error]:", err);
@@ -95,20 +89,12 @@ export default function CreateGoalModal({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.18 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/65 p-0 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="w-full max-w-md max-h-[85vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] rounded-2xl bg-gradient-to-b from-[#181C24] to-[#0F131C] border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl text-[#DFE2EE] space-y-5"
+      <div
+        className="modal-enter w-full max-w-md max-h-[88vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] rounded-t-2xl sm:rounded-2xl bg-gradient-to-b from-[#181C24] to-[#0F131C] border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl text-[#DFE2EE] space-y-5"
       >
         <div className="flex items-center justify-between">
           <div>
@@ -236,7 +222,7 @@ export default function CreateGoalModal({
               : "Create Strategic Goal"}
           </button>
         </form>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

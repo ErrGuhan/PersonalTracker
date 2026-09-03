@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { resetAllDataToDefault } from "@/lib/db";
+import { resetAllDataToDefault, setActiveScopedUserId, DEMO_USER_ID } from "@/lib/db";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -28,6 +28,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user?.id) {
+        setActiveScopedUserId(session.user.id);
+      } else {
+        setActiveScopedUserId(DEMO_USER_ID);
+      }
       setLoading(false);
     });
 
@@ -37,6 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user?.id) {
+        setActiveScopedUserId(session.user.id);
+      } else {
+        setActiveScopedUserId(DEMO_USER_ID);
+      }
       setLoading(false);
     });
 
@@ -66,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     resetAllDataToDefault();
+    setActiveScopedUserId(DEMO_USER_ID);
     const { error } = await supabase.auth.signOut();
     setUser(null);
     setSession(null);

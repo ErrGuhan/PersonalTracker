@@ -151,9 +151,12 @@ function getLocal<T>(key: string, fallback: T, userId?: string): T {
     const scopedRaw = localStorage.getItem(fullKey);
     if (scopedRaw !== null) return JSON.parse(scopedRaw);
 
-    // Backward-compatibility fallback for legacy un-scoped data
-    const legacyRaw = localStorage.getItem(`lifesync_${key}`);
-    if (legacyRaw !== null) return JSON.parse(legacyRaw);
+    // Only allow un-scoped legacy fallback for the default demo user, never for an authenticated user
+    const uid = userId || getScopedUserId();
+    if (uid === DEMO_USER_ID) {
+      const legacyRaw = localStorage.getItem(`lifesync_${key}`);
+      if (legacyRaw !== null) return JSON.parse(legacyRaw);
+    }
 
     return fallback;
   } catch (err) {
@@ -399,8 +402,10 @@ export async function getStudyStats(): Promise<StudyStats> {
   const dailyMap: Record<string, number> = {};
 
   sessions.forEach((r) => {
-    const k = r.session_date.split("T")[0];
-    dailyMap[k] = (dailyMap[k] ?? 0) + r.duration_min;
+    const k = extractLocalDate(r.session_date);
+    if (k) {
+      dailyMap[k] = (dailyMap[k] ?? 0) + r.duration_min;
+    }
   });
 
   const todayMinutes = dailyMap[today] ?? 0;

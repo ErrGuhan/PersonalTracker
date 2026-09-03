@@ -43,6 +43,7 @@ import {
   upsertHealthMetrics,
   getActiveUserId,
   DEMO_USER_ID,
+  todayStr,
   type StudyStats,
 } from "@/lib/db";
 import type { HealthMetric, Workout, Goal, SleepLog, Habit, HydrationLog, MealLog, AiUserProfile } from "@/lib/database.types";
@@ -203,7 +204,7 @@ export function useLogStudySession() {
         subject,
         duration_min: durationMin,
         focus_score: focusScore ?? null,
-        session_date: new Date().toISOString().split("T")[0],
+        session_date: todayStr(),
       });
       setSaving(false);
       return result;
