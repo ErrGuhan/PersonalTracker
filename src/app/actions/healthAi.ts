@@ -42,26 +42,49 @@ export async function getHeroIntelligenceAction(
 
   const fallbackGenerator = (): { headline: string; interpretation: string } => {
     const rec = bundle.todaySummary.recoveryScore;
+    const sleep = bundle.todaySummary.sleepHours;
     const base = bundle.sevenDaySummary.avgRecovery;
-    const diff = rec - base;
 
-    if (diff >= 3) {
+    if (bundle.dataAvailability === "MISSING" || rec === null) {
       return {
-        headline: "Above Baseline Readiness",
+        headline: "No Health Data Recorded Yet",
         interpretation:
-          "Your recovery is elevated relative to your 7-day average. Your nervous system is primed for intensive output and demanding physical conditioning.",
-      };
-    } else if (diff <= -5) {
-      return {
-        headline: "Restoration Recommended",
-        interpretation:
-          "Your sleep duration was slightly below your personal average. Today is better suited for moderate training and structured focus rather than maximum physical strain.",
+          "Log your first sleep session or vitals to unlock your personalized recovery intelligence and readiness score.",
       };
     }
+
+    if (bundle.dataAvailability === "PARTIAL") {
+      if (sleep !== null && bundle.todaySummary.hrvMs === null) {
+        return {
+          headline: "Sleep Logged · Vitals Pending",
+          interpretation: `Your current readiness is estimated from your ${sleep}h of sleep. Log your HRV and resting vitals for an integrated recovery score.`,
+        };
+      }
+    }
+
+    if (base !== null) {
+      const diff = rec - base;
+      if (diff >= 3) {
+        return {
+          headline: "Above Baseline Readiness",
+          interpretation:
+            "Your recovery is elevated relative to your 7-day average. Your nervous system is primed for intensive output and demanding physical conditioning.",
+        };
+      } else if (diff <= -5) {
+        return {
+          headline: "Restoration Recommended",
+          interpretation:
+            "Your recovery is below your personal average. Today is better suited for moderate training and structured focus rather than maximum physical strain.",
+        };
+      }
+    }
+
     return {
-      headline: "Steady Baseline State",
+      headline: rec >= 70 ? "Optimal Operational State" : "Moderate Readiness",
       interpretation:
-        "Your biometrics and recovery are well-balanced with your recent baseline. Maintain your standard cadence across focus and movement.",
+        rec >= 70
+          ? "Your biometrics and recovery indicate strong capacity for both deep cognitive work and physical training."
+          : "Maintain your standard cadence today, balancing focused execution with intentional recovery breaks.",
     };
   };
 
@@ -73,30 +96,65 @@ export async function getHeroIntelligenceAction(
 
   const rec = bundle.todaySummary.recoveryScore;
   const base = bundle.sevenDaySummary.avgRecovery;
-  const diff = rec - base;
 
-  let capacityLevel: HeroHealthIntelligence["capacityLevel"] = "MODERATE";
-  if (rec >= 85) capacityLevel = "PEAK";
-  else if (rec >= 70) capacityLevel = "HIGH";
-  else if (rec >= 50) capacityLevel = "MODERATE";
-  else if (rec >= 35) capacityLevel = "LOW";
-  else capacityLevel = "RECOVERY";
+  let capacityLevel: HeroHealthIntelligence["capacityLevel"] = "INSUFFICIENT";
+  let capacityScore: number | null = null;
+  let trendIndicator: HeroHealthIntelligence["trendIndicator"] = "unknown";
+
+  if (rec !== null) {
+    capacityScore = Math.min(100, Math.round(rec * 0.95));
+    if (rec >= 85) capacityLevel = "PEAK";
+    else if (rec >= 70) capacityLevel = "HIGH";
+    else if (rec >= 50) capacityLevel = "MODERATE";
+    else if (rec >= 35) capacityLevel = "LOW";
+    else capacityLevel = "RECOVERY";
+
+    if (base !== null) {
+      const diff = rec - base;
+      trendIndicator = diff >= 3 ? "up" : diff <= -3 ? "down" : "neutral";
+    } else {
+      trendIndicator = "neutral";
+    }
+  }
+
+  const evidence: string[] = [];
+  if (rec !== null) {
+    evidence.push(`Recovery score: ${rec}%${base !== null ? ` (7D baseline: ${base}%)` : ""}`);
+  } else {
+    evidence.push("Recovery score: Not recorded");
+  }
+
+  if (bundle.todaySummary.sleepHours !== null) {
+    evidence.push(`Sleep logged: ${bundle.todaySummary.sleepHours}h`);
+  } else {
+    evidence.push("Sleep: Not recorded");
+  }
+
+  if (bundle.todaySummary.hrvMs !== null) {
+    evidence.push(`HRV: ${bundle.todaySummary.hrvMs}ms`);
+  } else {
+    evidence.push("HRV: Not recorded");
+  }
 
   return {
     greeting: "Good morning",
     recoveryScore: rec,
     sleepDurationHours: bundle.todaySummary.sleepHours,
-    capacityScore: Math.min(100, Math.round(rec * 0.95)),
+    capacityScore,
     capacityLevel,
-    trendIndicator: diff >= 3 ? "up" : diff <= -3 ? "down" : "neutral",
+    trendIndicator,
     headline: result.headline,
     interpretation: result.interpretation,
-    confidence: bundle.sevenDaySummary.trackedDaysCount >= 7 ? "HIGH" : "MEDIUM",
-    evidence: [
-      `Recovery score: ${rec}% (7D baseline: ${base}%)`,
-      `Sleep logged: ${bundle.todaySummary.sleepHours}h`,
-      `HRV status: ${bundle.todaySummary.hrvMs}ms`,
-    ],
+    confidence:
+      rec === null
+        ? "INSUFFICIENT"
+        : bundle.sevenDaySummary.trackedDaysCount >= 7
+        ? "HIGH"
+        : bundle.sevenDaySummary.trackedDaysCount >= 3
+        ? "MEDIUM"
+        : "LOW",
+    availability: bundle.dataAvailability,
+    evidence,
   };
 }
 
@@ -105,28 +163,34 @@ export async function getHeroIntelligenceAction(
  */
 export async function getRecoveryInterpretationAction(
   bundle: HealthContextBundle,
-  recoveryScore: number,
-  baseline: number
+  recoveryScore: number | null,
+  baseline: number | null
 ): Promise<string> {
+  if (recoveryScore === null) {
+    return "Recovery telemetry has not been logged yet for today. Log sleep or vitals to calculate your recovery.";
+  }
+
   const contextStr = formatContextPromptString(bundle);
-  const prompt = PROMPT_RECOVERY_ANALYSIS(contextStr, recoveryScore, baseline);
+  const prompt = PROMPT_RECOVERY_ANALYSIS(contextStr, recoveryScore, baseline ?? recoveryScore);
 
   const fallbackGenerator = (): { interpretation: string } => {
-    const diff = recoveryScore - baseline;
-    if (diff >= 3) {
-      return {
-        interpretation:
-          "Your recovery is currently above your personal baseline, bolstered by sufficient sleep duration and stabilized resting heart rate. Your physiological capacity is high for physical and deep work output.",
-      };
-    } else if (diff <= -3) {
-      return {
-        interpretation:
-          "Your recovery is slightly below your personal baseline, primarily because sleep duration was lower than usual. Prioritize restorative breaks and moderate workloads today.",
-      };
+    if (baseline !== null) {
+      const diff = recoveryScore - baseline;
+      if (diff >= 3) {
+        return {
+          interpretation:
+            "Your recovery is currently above your personal baseline, bolstered by sufficient sleep duration and stabilized autonomic markers. Your physiological capacity is high for physical and deep work output.",
+        };
+      } else if (diff <= -3) {
+        return {
+          interpretation:
+            "Your recovery is below your personal baseline. Prioritize restorative breaks and moderate workloads today to prevent compounding fatigue.",
+        };
+      }
     }
     return {
       interpretation:
-        "Your recovery remains consistent with your 14-day baseline. Both autonomic metrics and recent workload suggest steady readiness for your planned routines.",
+        "Your recovery readiness indicates steady capacity. Both autonomic metrics and recent workload suggest consistency for your planned routines.",
     };
   };
 
@@ -143,9 +207,13 @@ export async function getRecoveryInterpretationAction(
  */
 export async function getDailyCapacityInterpretationAction(
   bundle: HealthContextBundle,
-  capacityScore: number,
+  capacityScore: number | null,
   level: string
 ): Promise<string> {
+  if (capacityScore === null) {
+    return "Operational capacity cannot be evaluated until recovery or sleep metrics are logged.";
+  }
+
   const contextStr = formatContextPromptString(bundle);
   const prompt = PROMPT_DAILY_CAPACITY(contextStr, capacityScore, level);
 
@@ -163,7 +231,7 @@ export async function getDailyCapacityInterpretationAction(
     }
     return {
       interpretation:
-        "Lower capacity detected due to sleep debt or accumulated fatigue. Focus on essentials: 1 focused session, active mobility, and an earlier bedtime target.",
+        "Lower capacity detected. Focus on essentials: 1 focused session, active mobility, and an earlier bedtime target.",
     };
   };
 
@@ -186,6 +254,33 @@ export async function getTodayRecommendationAction(
 
   const fallbackGenerator = (): PersonalizedRecommendation => {
     const rec = bundle.todaySummary.recoveryScore;
+
+    if (bundle.dataAvailability === "MISSING" || rec === null) {
+      return {
+        title: "Log Sleep & Vitals to Calibrate Daily Plan",
+        summary:
+          "Today's recommendation requires your latest sleep or vitals. Log your session to receive calibrated workout intensity and focus block suggestions.",
+        confidence: "INSUFFICIENT",
+        evidence: ["No biometrics logged for today"],
+        actions: [
+          {
+            id: "rec-log-sleep",
+            label: "Log Last Night's Sleep",
+            detail: "Record hours and rested feeling to compute recovery baseline",
+            category: "sleep",
+          },
+          {
+            id: "rec-log-vitals",
+            label: "Update Resting Vitals",
+            detail: "Log HRV, resting heart rate, or hydration",
+            category: "recovery",
+          },
+        ],
+        whyExplanation:
+          "Recommendations adapt to your physiological state once telemetry is provided.",
+      };
+    }
+
     const isHigh = rec >= 75;
 
     return {
@@ -194,12 +289,12 @@ export async function getTodayRecommendationAction(
         : "Calibrate Workload for Recovery",
       summary: isHigh
         ? "Your recovery is strong enough for high-intensity work and athletic training. Capitalize on morning cognitive peak."
-        : "Your sleep was slightly below baseline. Moderate exercise and scheduled focus blocks will maintain momentum without exhausting capacity.",
+        : "Your recovery indicates moderate reserves. Moderate exercise and scheduled focus blocks will maintain momentum without exhausting capacity.",
       confidence: bundle.sevenDaySummary.trackedDaysCount >= 7 ? "HIGH" : "MEDIUM",
       evidence: [
         `Today's Recovery Score: ${rec}%`,
-        `Last night sleep: ${bundle.todaySummary.sleepHours}h`,
-        `HRV reading: ${bundle.todaySummary.hrvMs}ms`,
+        `Last night sleep: ${bundle.todaySummary.sleepHours !== null ? `${bundle.todaySummary.sleepHours}h` : "Not recorded"}`,
+        `HRV reading: ${bundle.todaySummary.hrvMs !== null ? `${bundle.todaySummary.hrvMs}ms` : "Not recorded"}`,
       ],
       actions: isHigh
         ? [
@@ -243,7 +338,7 @@ export async function getTodayRecommendationAction(
             },
           ],
       whyExplanation:
-        "Derived from comparing your current recovery metrics against your 14-day rolling average and recent activity volume.",
+        "Derived from comparing your current recovery metrics against your personal baseline and recent activity volume.",
     };
   };
 
@@ -405,38 +500,103 @@ export async function askHealthAssistantAction(
     const lower = userMessage.toLowerCase();
     const rec = bundle.todaySummary.recoveryScore;
     const sleep = bundle.todaySummary.sleepHours;
+    const hrv = bundle.todaySummary.hrvMs;
 
-    if (lower.includes("tired") || lower.includes("fatigue") || lower.includes("exhaust")) {
-      return {
-        content: `Your recorded sleep last night was ${sleep}h, which is below your target. Additionally, your stress level was recorded at ${bundle.todaySummary.stressPct}%. I recommend keeping today's physical training under 30 minutes and drinking 500ml water to counteract fatigue.`,
-        actionChips: ["How is my recovery?", "Make tomorrow easier", "Improve sleep"],
-      };
-    } else if (lower.includes("train") || lower.includes("workout") || lower.includes("gym")) {
-      if (rec >= 75) {
+    if (lower.includes("sleep")) {
+      if (sleep === null) {
         return {
-          content: `Yes, your recovery is currently at ${rec}% (above your 7-day baseline of ${bundle.sevenDaySummary.avgRecovery}%). Your cardiovascular and nervous system markers support high-intensity training or progressive resistance work today.`,
-          actionChips: ["Build my workout", "Today's capacity", "Nutrition advice"],
+          content: "No sleep logged for last night. Log your sleep to see recovery insights.",
+          actionChips: ["Why am I tired?", "How was my recovery?", "Should I train today?"],
+        };
+      } else if (sleep < 6) {
+        return {
+          content: `You logged ${sleep} hours of sleep, which is well below your restorative target. Accumulated sleep debt reduces cognitive processing and physical capacity. Prioritize an early wind-down tonight.`,
+          actionChips: ["Why am I tired?", "Light mobility plan", "Set bedtime reminder"],
+        };
+      } else if (sleep >= 8.5) {
+        return {
+          content: `You logged ${sleep} hours of sleep—a restorative, high-duration session. This provides an excellent physiological foundation for both deep focus and high-intensity training today.`,
+          actionChips: ["Should I train today?", "Build My Day", "Daily capacity"],
         };
       } else {
         return {
-          content: `Your recovery is at ${rec}%. Rather than heavy maximal exertion, today is better suited for a moderate aerobic session (30–40 mins) or mobility and restorative movement.`,
-          actionChips: ["Light mobility plan", "Improve recovery", "Why am I tired?"],
+          content: `You recorded ${sleep} hours of sleep last night${bundle.sevenDaySummary.avgSleepHours !== null ? ` (7-day baseline: ${bundle.sevenDaySummary.avgSleepHours}h)` : ""}. Sleep duration is consistent with your personal baseline.`,
+          actionChips: ["Should I train today?", "How was my recovery?", "Build My Day"],
         };
       }
-    } else if (lower.includes("sleep")) {
+    }
+
+    if (lower.includes("train") || lower.includes("workout") || lower.includes("gym")) {
+      if (rec === null && sleep === null) {
+        return {
+          content: "You haven't logged sleep or vitals yet today. I recommend logging your sleep first so I can calculate your readiness for a heavy workout.",
+          actionChips: ["Why am I tired?", "Build My Day", "How was my recovery?"],
+        };
+      }
+      if (rec !== null && rec >= 75) {
+        return {
+          content: `Yes, your recovery is currently strong at ${rec}%${hrv !== null ? ` with an HRV of ${hrv}ms` : ""}. Your nervous system is primed for high-intensity training or progressive resistance work today.`,
+          actionChips: ["Build my workout", "Today's capacity", "Hydration tips"],
+        };
+      } else if (rec !== null && rec < 50) {
+        return {
+          content: `Your recovery is lower today at ${rec}%. Rather than maximal exertion, today is better suited for active recovery, light mobility, or Zone 2 cardio to stimulate blood flow without further fatiguing your system.`,
+          actionChips: ["Light mobility plan", "Why am I tired?", "Improve recovery"],
+        };
+      } else {
+        return {
+          content: `Your recovery is at ${rec !== null ? `${rec}%` : "moderate readiness"}. A standard moderate-intensity session (30–45 mins) is appropriate today. Avoid pushing to muscular failure.`,
+          actionChips: ["Today's capacity", "Workout suggestions", "Daily capacity"],
+        };
+      }
+    }
+
+    if (lower.includes("recovery")) {
+      if (rec === null) {
+        return {
+          content: "Your recovery has not been recorded yet today. Log your sleep or resting vitals to compute your readiness score.",
+          actionChips: ["Why am I tired?", "Should I train today?", "Build My Day"],
+        };
+      }
+      const factorsText: string[] = [];
+      if (sleep !== null) factorsText.push(`Sleep: ${sleep}h`);
+      if (hrv !== null) factorsText.push(`HRV: ${hrv}ms`);
+      if (bundle.todaySummary.stressPct !== null) factorsText.push(`Stress: ${bundle.todaySummary.stressPct}%`);
+
       return {
-        content: `Your 7-day average sleep duration is ${bundle.sevenDaySummary.avgSleepHours}h. To optimize restorative sleep stages, target entering bed by ${bundle.profileSummary?.preferredSleepTime || "22:45"} and avoid heavy meals within 3 hours of sleep.`,
-        actionChips: ["Why am I tired?", "Analyze sleep stages", "Set bedtime reminder"],
+        content: `Your recovery score today is ${rec}%. Contributing factors: ${factorsText.length > 0 ? factorsText.join(", ") : "Sleep duration"}. System readiness is ${rec >= 70 ? "optimal" : rec >= 50 ? "steady" : "constrained"}.`,
+        actionChips: ["Daily capacity", "Build My Day", "Should I train today?"],
       };
-    } else if (lower.includes("recovery")) {
+    }
+
+    if (lower.includes("tired") || lower.includes("fatigue") || lower.includes("exhaust")) {
+      if (sleep === null) {
+        return {
+          content: "You haven't logged your sleep yet. Fatigue is frequently driven by sleep duration deficits or circadian misalignment. Log last night's sleep to analyze potential causes.",
+          actionChips: ["Drink water", "How was my recovery?", "Should I train today?"],
+        };
+      }
       return {
-        content: `Your recovery score today is ${rec}%. Contributing factors: Sleep (${Math.min(100, Math.round((sleep / 8) * 100))}%), HRV (${bundle.todaySummary.hrvMs}ms), and Stress (${bundle.todaySummary.stressPct}%). Overall system readiness is stable.`,
-        actionChips: ["Daily capacity", "Build My Day", "Review my progress"],
+        content: `Your recorded sleep was ${sleep}h. ${sleep < 7 ? "This is below the recommended 7.5–8.0h restorative threshold." : "Sleep duration was adequate, so fatigue may stem from hydration deficits or mental workload."} Consider drinking 500ml water and taking a 10-minute natural daylight walk.`,
+        actionChips: ["Improve my sleep", "Adjust today's plan", "Hydration target"],
+      };
+    }
+
+    if (lower.includes("adjust") || lower.includes("schedule") || lower.includes("day")) {
+      if (rec === null) {
+        return {
+          content: "To calibrate an energy-matched schedule, please log your sleep or vitals first. Once logged, I will align your deep work blocks with your peak cognitive readiness.",
+          actionChips: ["How was my sleep?", "Should I train today?", "Why am I tired?"],
+        };
+      }
+      return {
+        content: `Based on your recovery of ${rec}%, I suggest scheduling your primary deep work block earlier in the day and keeping high-intensity physical movement for late afternoon.`,
+        actionChips: ["Build My Day", "Today's capacity", "Should I train today?"],
       };
     }
 
     return {
-      content: `I've analyzed your health telemetry (Recovery: ${rec}%, Sleep: ${sleep}h, Focus: ${bundle.todaySummary.focusMinutes}m). Your biometrics indicate steady readiness. What specific aspect of your health or plan would you like to optimize?`,
+      content: `I've analyzed your health telemetry (${rec !== null ? `Recovery: ${rec}%` : "Recovery: Not recorded"}, ${sleep !== null ? `Sleep: ${sleep}h` : "Sleep: Not recorded"}, Focus: ${bundle.todaySummary.focusMinutes}m). What specific aspect of your recovery or daily plan would you like to calibrate?`,
       actionChips: ["Why am I tired?", "Should I train today?", "Build My Day"],
     };
   };
@@ -446,16 +606,23 @@ export async function askHealthAssistantAction(
     fallbackGenerator
   );
 
+  const evidence: string[] = [];
+  if (bundle.todaySummary.recoveryScore !== null) {
+    evidence.push(`Recovery: ${bundle.todaySummary.recoveryScore}%`);
+  }
+  if (bundle.todaySummary.sleepHours !== null) {
+    evidence.push(`Sleep: ${bundle.todaySummary.sleepHours}h`);
+  }
+  if (bundle.todaySummary.hrvMs !== null) {
+    evidence.push(`HRV: ${bundle.todaySummary.hrvMs}ms`);
+  }
+
   return {
     id: `msg-${Date.now()}`,
     role: "assistant",
     content: res.content,
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    evidence: [
-      `Recovery: ${bundle.todaySummary.recoveryScore}%`,
-      `Sleep: ${bundle.todaySummary.sleepHours}h`,
-      `HRV: ${bundle.todaySummary.hrvMs}ms`,
-    ],
+    evidence: evidence.length > 0 ? evidence : ["Awaiting telemetry input"],
     actionChips: res.actionChips || ["Why am I tired?", "How was my recovery?", "Build My Day"],
   };
 }
@@ -619,42 +786,27 @@ export async function generateAdaptivePlanAction(
 export async function getAiInsightsAction(
   bundle: HealthContextBundle
 ): Promise<AiInsightItem[]> {
+  // Phase 2 & 5 rule: If insufficient history exists (< 3 days), return empty array so UI shows clean no-data state
+  if (bundle.sevenDaySummary.trackedDaysCount < 3) {
+    return [];
+  }
+
   const contextStr = formatContextPromptString(bundle);
   const prompt = PROMPT_AI_INSIGHTS(contextStr);
 
   const fallbackGenerator = (): { insights: AiInsightItem[] } => {
-    const days = Math.max(14, bundle.sevenDaySummary.trackedDaysCount);
+    const days = bundle.sevenDaySummary.trackedDaysCount;
     return {
       insights: [
         {
           id: "ins-1",
           title: "Sleep Duration & Focus Association",
-          text: "Your focus time tends to be approximately 32% higher on days following 7.2+ hours of logged sleep.",
-          correlationText: "Positive association between 7h+ sleep and study duration",
+          text: "Your focus time shows an association with days following sleep duration that meets your baseline target.",
+          correlationText: "Positive association between baseline sleep and focus duration",
           evidence: `Based on ${days} tracked days`,
           daysTracked: days,
-          confidence: "HIGH",
+          confidence: days >= 7 ? "HIGH" : "MEDIUM",
           category: "sleep",
-        },
-        {
-          id: "ins-2",
-          title: "Session Duration Adherence",
-          text: "You complete 30-minute training sessions with significantly higher regularity than 60-minute workouts.",
-          correlationText: "Higher completion frequency with moderate-duration routines",
-          evidence: `Based on ${days} tracked days`,
-          daysTracked: days,
-          confidence: "MEDIUM",
-          category: "workout",
-        },
-        {
-          id: "ins-3",
-          title: "Workload & Next-Day Recovery",
-          text: "Your recovery score shows an inverse trend following days where multiple intense workouts and study blocks were combined.",
-          correlationText: "Recovery dips after cumulative load exceeds 3.5 hours",
-          evidence: `Based on ${days} tracked days`,
-          daysTracked: days,
-          confidence: "MEDIUM",
-          category: "recovery",
         },
       ],
     };
@@ -665,7 +817,7 @@ export async function getAiInsightsAction(
     fallbackGenerator,
     `insights_${bundle.sevenDaySummary.trackedDaysCount}`
   );
-  return res.insights;
+  return res.insights || [];
 }
 
 /**
@@ -679,15 +831,23 @@ export async function getMorningBriefAction(
 
   const fallbackGenerator = (): MorningBriefResult => {
     const rec = bundle.todaySummary.recoveryScore;
+    const sleep = bundle.todaySummary.sleepHours;
+    const hrv = bundle.todaySummary.hrvMs;
+
     return {
       recoveryScore: rec,
-      sleepDuration: `${bundle.todaySummary.sleepHours}h`,
-      capacityLevel: rec >= 75 ? "HIGH" : rec >= 50 ? "MODERATE" : "RECOVERY",
+      sleepDuration: sleep !== null ? `${sleep}h` : "Not recorded",
+      capacityLevel: rec === null ? "INSUFFICIENT" : rec >= 75 ? "HIGH" : rec >= 50 ? "MODERATE" : "RECOVERY",
       headline:
-        rec >= 75
+        rec === null
+          ? "Awaiting Telemetry Input"
+          : rec >= 75
           ? "High Autonomic Readiness"
           : "Steady Operational Capacity",
-      overview: `You logged ${bundle.todaySummary.sleepHours}h of sleep with an HRV of ${bundle.todaySummary.hrvMs}ms. Today's physiological budget is primed for focused work sessions.`,
+      overview:
+        rec !== null
+          ? `You logged ${sleep !== null ? `${sleep}h` : "sleep"} with an HRV of ${hrv !== null ? `${hrv}ms` : "baseline"}. Today's physiological budget is primed for focused work sessions.`
+          : "Log your sleep or vitals to calculate your morning readiness and personalized priorities.",
       suggestedPriorities: [
         "Deep Work: 2 concentrated focus sessions",
         "Exercise: 35–45 min moderate workout",
@@ -712,8 +872,8 @@ export async function getEveningReviewAction(
     return {
       completedHabits: `${bundle.habitSummary.completedToday}/${bundle.habitSummary.totalHabits}`,
       focusMinutes: bundle.todaySummary.focusMinutes,
-      workoutCompleted: bundle.todaySummary.caloriesBurned > 1800,
-      sleepLastNight: `${bundle.todaySummary.sleepHours}h`,
+      workoutCompleted: (bundle.todaySummary.caloriesBurned ?? 0) > 1800,
+      sleepLastNight: bundle.todaySummary.sleepHours !== null ? `${bundle.todaySummary.sleepHours}h` : "Not recorded",
       summary: `You maintained solid execution across your daily routines today, completing ${bundle.habitSummary.completedToday} habits and logging ${bundle.todaySummary.focusMinutes}m of focus time.`,
       tomorrowRecommendation:
         "Maintain a similar workload tomorrow. Initiate wind-down 30 minutes early to preserve recovery stability.",

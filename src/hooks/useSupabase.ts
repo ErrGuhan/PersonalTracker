@@ -34,6 +34,7 @@ import {
   updateMeal as updateMealDb,
   deleteMeal as deleteMealDb,
   upsertHealthMetrics,
+  getActiveUserId,
   DEMO_USER_ID,
   type StudyStats,
 } from "@/lib/db";
@@ -94,20 +95,25 @@ export function useHealthMetrics() {
   const { data, loading, error, refetch } = useAsync(getLatestHealthMetrics);
 
   useEffect(() => {
-    const channel = supabase
-      .channel("health-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "health_metrics",
-          filter: `user_id=eq.${DEMO_USER_ID}`,
-        },
-        () => { refetch(); }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    getActiveUserId().then((uid) => {
+      channel = supabase
+        .channel(`health-realtime-${uid}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "health_metrics",
+            filter: `user_id=eq.${uid}`,
+          },
+          () => { refetch(); }
+        )
+        .subscribe();
+    });
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [refetch]);
 
   return { metrics: data, loading, error, refetch };
@@ -136,17 +142,21 @@ export function useRecentWorkouts(limit = 5) {
   const fetcher = useCallback(() => getRecentWorkouts(limit), [limit]);
   const { data, loading, error, refetch } = useAsync(fetcher);
 
-
   useEffect(() => {
-    const channel = supabase
-      .channel("workouts-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "workouts", filter: `user_id=eq.${DEMO_USER_ID}` },
-        () => { refetch(); }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    getActiveUserId().then((uid) => {
+      channel = supabase
+        .channel(`workouts-realtime-${uid}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "workouts", filter: `user_id=eq.${uid}` },
+          () => { refetch(); }
+        )
+        .subscribe();
+    });
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [refetch]);
 
   return { workouts: data ?? [], loading, error, refetch };
@@ -226,7 +236,26 @@ export function useLatestMood() {
 // SLEEP
 // ─────────────────────────────────────────────────────────
 export function useLatestSleep() {
-  return useAsync(getLatestSleep);
+  const { data, loading, error, refetch } = useAsync(getLatestSleep);
+
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    getActiveUserId().then((uid) => {
+      channel = supabase
+        .channel(`sleep-realtime-${uid}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "sleep_logs", filter: `user_id=eq.${uid}` },
+          () => { refetch(); }
+        )
+        .subscribe();
+    });
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [refetch]);
+
+  return { data, loading, error, refetch };
 }
 
 export function useWeeklySleep() {
@@ -316,15 +345,20 @@ export function useGoals() {
   );
 
   useEffect(() => {
-    const channel = supabase
-      .channel("goals-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "goals", filter: `user_id=eq.${DEMO_USER_ID}` },
-        () => { refetch(); }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    getActiveUserId().then((uid) => {
+      channel = supabase
+        .channel(`goals-realtime-${uid}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "goals", filter: `user_id=eq.${uid}` },
+          () => { refetch(); }
+        )
+        .subscribe();
+    });
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [refetch]);
 
   return { goals: data ?? [], loading, error, refetch, updateProgress, updating };

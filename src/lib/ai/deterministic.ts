@@ -20,70 +20,92 @@ import type {
   CompletionProbabilityItem,
   HealthTrendPoint,
   RecoveryIntelligenceResult,
+  RecoveryFactorDetail,
 } from "./types";
 
 /**
  * Calculates Recovery Score (0–100) deterministically.
+ * Pure function: returns null if no valid metrics or sleep are recorded.
+ * Never defaults missing metrics to zero.
  */
 export function calculateDeterministicRecovery(
   metrics: HealthMetric | null,
   sleep: SleepLog | null
-): number {
-  if (!metrics && !sleep) return 0;
+): number | null {
+  const hasSleep = sleep !== null && sleep.hours !== null && Number(sleep.hours) > 0;
+  const hasHrv = metrics !== null && metrics.hrv_ms !== null && Number(metrics.hrv_ms) > 0;
+  const hasHydration = metrics !== null && metrics.hydration_pct !== null && Number(metrics.hydration_pct) > 0;
+  const hasStress = metrics !== null && metrics.stress_pct !== null && Number(metrics.stress_pct) > 0;
+  const hasSpo2 = metrics !== null && metrics.spo2 !== null && Number(metrics.spo2) > 0;
 
-  const sleepHrs = sleep?.hours ?? 0;
-  const hydrationPct = metrics?.hydration_pct ?? 0;
-  const hrv = metrics?.hrv_ms ?? 0;
-  const stress = metrics?.stress_pct ?? 0;
-  const spo2 = Number(metrics?.spo2 ?? 0);
-
-  // If all metrics are default/empty zero-state
-  if (
-    sleepHrs === 0 &&
-    hydrationPct === 0 &&
-    hrv === 0 &&
-    (metrics?.steps ?? 0) === 0 &&
-    (metrics?.calories_burned ?? 0) === 0
-  ) {
-    return 0;
+  if (!hasSleep && !hasHrv && !hasHydration && !hasStress && !hasSpo2) {
+    return null;
   }
 
-  // Weightings:
-  // Sleep (35%): 8h target
-  // Hydration (20%): 100% target
-  // HRV (25%): 75ms target
-  // Stress (10%): inverse stress
-  // SpO2 (10%): normalized above 92%
-  const sleepComponent = Math.min(sleepHrs / 8, 1.1) * 35;
-  const hydrationComponent = (Math.min(hydrationPct, 100) / 100) * 20;
-  const hrvComponent = (Math.min(hrv, 85) / 85) * 25;
-  const stressComponent = ((100 - Math.min(stress, 100)) / 100) * 10;
-  const spo2Component = spo2 > 0 ? (Math.max(0, Math.min(spo2 - 90, 10)) / 10) * 10 : 8;
+  let totalWeight = 0;
+  let weightedScore = 0;
 
-  const total = Math.round(
-    sleepComponent + hydrationComponent + hrvComponent + stressComponent + spo2Component
-  );
-  return Math.min(100, Math.max(0, total));
+  if (hasSleep) {
+    const weight = 40;
+    const sleepScore = Math.min(Number(sleep.hours) / 8, 1.1) * 100;
+    weightedScore += sleepScore * weight;
+    totalWeight += weight;
+  }
+
+  if (hasHrv) {
+    const weight = 30;
+    const hrvScore = Math.min(Number(metrics.hrv_ms) / 80, 1.1) * 100;
+    weightedScore += hrvScore * weight;
+    totalWeight += weight;
+  }
+
+  if (hasStress) {
+    const weight = 15;
+    const stressScore = Math.max(0, 100 - Number(metrics.stress_pct));
+    weightedScore += stressScore * weight;
+    totalWeight += weight;
+  }
+
+  if (hasHydration) {
+    const weight = 10;
+    const hydScore = Math.min(Number(metrics.hydration_pct), 100);
+    weightedScore += hydScore * weight;
+    totalWeight += weight;
+  }
+
+  if (hasSpo2) {
+    const weight = 5;
+    const spo2Val = Number(metrics.spo2);
+    const spo2Score = Math.min(100, Math.max(0, (spo2Val - 90) * 10));
+    weightedScore += spo2Score * weight;
+    totalWeight += weight;
+  }
+
+  if (totalWeight === 0) return null;
+  return Math.min(100, Math.max(10, Math.round(weightedScore / totalWeight)));
 }
 
 /**
- * Calculates 14-day rolling average baseline for Recovery.
+ * Calculates rolling average baseline for Recovery.
+ * Returns baselineScore: null if no history exists (never invents 80).
  */
 export function calculateRecoveryBaseline(history: HealthMetric[]): {
-  baselineScore: number;
+  baselineScore: number | null;
   confidence: ConfidenceLevel;
   daysEvaluated: number;
 } {
-  const valid = history.filter((h) => (h.recovery_score ?? 0) > 0);
+  const valid = history.filter(
+    (h) => h.recovery_score !== null && (h.recovery_score ?? 0) > 0
+  );
   if (valid.length === 0) {
-    return { baselineScore: 80, confidence: "INSUFFICIENT", daysEvaluated: 0 };
+    return { baselineScore: null, confidence: "INSUFFICIENT", daysEvaluated: 0 };
   }
 
   const sum = valid.reduce((acc, curr) => acc + (curr.recovery_score ?? 0), 0);
   const baseline = Math.round(sum / valid.length);
 
   const confidence: ConfidenceLevel =
-    valid.length >= 14 ? "HIGH" : valid.length >= 4 ? "MEDIUM" : "LOW";
+    valid.length >= 7 ? "HIGH" : valid.length >= 3 ? "MEDIUM" : "LOW";
 
   return {
     baselineScore: baseline,
@@ -93,60 +115,104 @@ export function calculateRecoveryBaseline(history: HealthMetric[]): {
 }
 
 /**
- * Calculates detailed recovery factor breakdown (0–100 each).
+ * Calculates detailed recovery factor breakdown.
+ * Explicitly marks missing factors as isRecorded: false instead of inventing numbers.
  */
 export function calculateRecoveryFactors(
   metrics: HealthMetric | null,
   sleep: SleepLog | null,
   workouts: Workout[],
   habits: Habit[]
-) {
-  // 1. Sleep Factor: hours + stage quality
-  const sleepHrs = sleep?.hours ?? 0;
-  const deepPct = sleep?.deep_pct ?? 20;
-  const remPct = sleep?.rem_pct ?? 18;
-  const sleepScore = Math.min(
-    100,
-    Math.round((sleepHrs / 8) * 70 + (deepPct / 25) * 15 + (remPct / 20) * 15)
-  );
+): {
+  sleep: RecoveryFactorDetail;
+  activity: RecoveryFactorDetail;
+  hrv: RecoveryFactorDetail;
+  spo2: RecoveryFactorDetail;
+  workload: RecoveryFactorDetail;
+  consistency: RecoveryFactorDetail;
+} {
+  // 1. Sleep Factor
+  const hasSleep = sleep !== null && sleep.hours !== null && Number(sleep.hours) > 0;
+  const sleepFactor: RecoveryFactorDetail = {
+    isRecorded: Boolean(hasSleep),
+    rawValue: hasSleep ? `${sleep.hours}h` : null,
+    unit: "hours",
+    score: hasSleep ? Math.min(100, Math.round((Number(sleep.hours) / 8) * 100)) : null,
+    statusText: hasSleep ? `${sleep.hours} hrs logged` : "Not recorded",
+  };
 
-  // 2. Activity Factor: calories + steps
-  const cals = metrics?.calories_burned ?? 0;
+  // 2. HRV Factor
+  const hasHrv = metrics !== null && metrics.hrv_ms !== null && Number(metrics.hrv_ms) > 0;
+  const hrvFactor: RecoveryFactorDetail = {
+    isRecorded: Boolean(hasHrv),
+    rawValue: hasHrv ? `${metrics.hrv_ms}ms` : null,
+    unit: "ms",
+    score: hasHrv ? Math.min(100, Math.round((Number(metrics.hrv_ms) / 80) * 100)) : null,
+    statusText: hasHrv ? `${metrics.hrv_ms} ms` : "Not recorded",
+  };
+
+  // 3. SpO2 Factor
+  const hasSpo2 = metrics !== null && metrics.spo2 !== null && Number(metrics.spo2) > 0;
+  const spo2Factor: RecoveryFactorDetail = {
+    isRecorded: Boolean(hasSpo2),
+    rawValue: hasSpo2 ? `${metrics.spo2}%` : null,
+    unit: "%",
+    score: hasSpo2 ? Math.min(100, Math.round(Number(metrics.spo2))) : null,
+    statusText: hasSpo2 ? `${metrics.spo2}%` : "Not recorded",
+  };
+
+  // 4. Activity Factor
+  const hasActivity =
+    metrics !== null &&
+    ((metrics.steps !== null && metrics.steps > 0) ||
+      (metrics.calories_burned !== null && metrics.calories_burned > 0) ||
+      workouts.length > 0);
   const steps = metrics?.steps ?? 0;
-  const activityScore = Math.min(
-    100,
-    Math.round(Math.min(cals / 2400, 1) * 50 + Math.min(steps / 9000, 1) * 50)
-  );
+  const cals = metrics?.calories_burned ?? 0;
+  const activityFactor: RecoveryFactorDetail = {
+    isRecorded: Boolean(hasActivity),
+    rawValue: hasActivity ? `${steps > 0 ? `${steps} steps` : `${cals} kcal`}` : null,
+    unit: "steps",
+    score: hasActivity
+      ? Math.min(100, Math.round(Math.min(cals / 2400, 1) * 50 + Math.min(steps / 9000, 1) * 50))
+      : null,
+    statusText: hasActivity
+      ? `${steps > 0 ? steps.toLocaleString() + " steps" : cals + " kcal"}`
+      : "Not recorded",
+  };
 
-  // 3. HRV Factor
-  const hrv = metrics?.hrv_ms ?? 0;
-  const hrvScore = Math.min(100, Math.round((hrv / 75) * 100));
+  // 5. Workload Factor
+  const hasStress = metrics !== null && metrics.stress_pct !== null && metrics.stress_pct > 0;
+  const hasWorkouts = workouts.length > 0;
+  const workloadRecorded = hasStress || hasWorkouts;
+  const stress = metrics?.stress_pct ?? 20;
+  const fatiguePenalty = Math.min(25, workouts.length * 5);
+  const workloadScore = Math.max(20, Math.min(100, 100 - stress - fatiguePenalty + 10));
 
-  // 4. SpO2 Factor
-  const spo2 = Number(metrics?.spo2 ?? 0);
-  const spo2Score = spo2 > 0 ? Math.min(100, Math.round((spo2 / 100) * 100)) : 95;
+  const workloadFactor: RecoveryFactorDetail = {
+    isRecorded: workloadRecorded,
+    rawValue: hasStress ? `Stress ${metrics.stress_pct}%` : hasWorkouts ? `${workouts.length} workouts` : null,
+    score: workloadRecorded ? workloadScore : null,
+    statusText: workloadRecorded ? (workloadScore >= 70 ? "Optimal load" : "Elevated load") : "No load logged",
+  };
 
-  // 5. Workload Factor (Inverse of stress & fatigue)
-  const stress = metrics?.stress_pct ?? 25;
-  const recentWorkoutsCount = workouts.length;
-  const fatiguePenalty = Math.min(25, recentWorkoutsCount * 4);
-  const workloadScore = Math.max(20, Math.min(100, 100 - stress - fatiguePenalty + 15));
-
-  // 6. Consistency Factor: habit completion rate
-  const completedHabits = habits.filter((h) => h.completedToday).length;
+  // 6. Consistency Factor
   const totalHabits = habits.length;
-  const consistencyScore =
-    totalHabits > 0
-      ? Math.round((completedHabits / totalHabits) * 100)
-      : 80;
+  const completedHabits = habits.filter((h) => h.completedToday).length;
+  const consistencyFactor: RecoveryFactorDetail = {
+    isRecorded: totalHabits > 0,
+    rawValue: totalHabits > 0 ? `${completedHabits}/${totalHabits}` : null,
+    score: totalHabits > 0 ? Math.round((completedHabits / totalHabits) * 100) : null,
+    statusText: totalHabits > 0 ? `${completedHabits}/${totalHabits} routines` : "No routines active",
+  };
 
   return {
-    sleep: sleepScore,
-    activity: activityScore,
-    hrv: hrvScore,
-    spo2: spo2Score,
-    workload: workloadScore,
-    consistency: consistencyScore,
+    sleep: sleepFactor,
+    activity: activityFactor,
+    hrv: hrvFactor,
+    spo2: spo2Factor,
+    workload: workloadFactor,
+    consistency: consistencyFactor,
   };
 }
 
@@ -164,53 +230,83 @@ export function computeRecoveryIntelligence(
   const { baselineScore, confidence, daysEvaluated } = calculateRecoveryBaseline(history);
   const factors = calculateRecoveryFactors(metrics, sleep, workouts, habits);
 
-  const diff = currentScore - baselineScore;
-  const trend: "improving" | "declining" | "stable" =
-    diff >= 3 ? "improving" : diff <= -3 ? "declining" : "stable";
+  let trend: "improving" | "declining" | "stable" | "insufficient_data" = "insufficient_data";
+  if (currentScore !== null && baselineScore !== null) {
+    const diff = currentScore - baselineScore;
+    trend = diff >= 3 ? "improving" : diff <= -3 ? "declining" : "stable";
+  }
 
-  const availability: DataAvailabilityStatus =
-    !metrics && !sleep
-      ? "MISSING"
-      : daysEvaluated < 3
-      ? "PARTIAL"
-      : "AVAILABLE";
+  const availability = evaluateDataAvailability(metrics, sleep, daysEvaluated);
 
-  const evidence = [
-    `Current recovery calculated at ${currentScore}%`,
-    `14-day personal baseline is ${baselineScore}% (${daysEvaluated} tracked days)`,
-    `Sleep contribution: ${factors.sleep}/100 based on ${sleep?.hours ?? 0}h sleep`,
-    `HRV biometric factor: ${metrics?.hrv_ms ?? 0}ms (${factors.hrv}/100)`,
-    `SpO2 oxygen saturation: ${metrics?.spo2 ?? 0}%`,
-  ];
+  const evidence: string[] = [];
+  if (currentScore !== null) {
+    evidence.push(`Current recovery calculated at ${currentScore}%`);
+  } else {
+    evidence.push("No recovery metrics recorded for today");
+  }
+
+  if (baselineScore !== null) {
+    evidence.push(`14-day personal baseline is ${baselineScore}% (${daysEvaluated} tracked days)`);
+  } else {
+    evidence.push(`Baseline requires at least 3 tracked days (currently ${daysEvaluated} recorded)`);
+  }
+
+  if (factors.sleep.isRecorded && sleep) {
+    evidence.push(`Sleep contribution: ${factors.sleep.score}/100 based on ${sleep.hours}h sleep`);
+  }
+  if (factors.hrv.isRecorded && metrics?.hrv_ms) {
+    evidence.push(`HRV biometric factor: ${metrics.hrv_ms}ms`);
+  }
 
   return {
     score: currentScore,
     baseline: baselineScore,
     trend,
-    confidence,
+    confidence: currentScore !== null ? confidence : "INSUFFICIENT",
     availability,
     factors,
-    interpretation: "", // Will be populated by AI or fallback engine
+    interpretation: "",
     evidence,
   };
 }
 
 /**
  * Calculates Daily Capacity Score (0–100) & recommended breakdown.
+ * Returns level: "INSUFFICIENT" if recovery and sleep are missing.
  */
 export function calculateDeterministicDailyCapacity(
-  recoveryScore: number,
+  recoveryScore: number | null,
   sleep: SleepLog | null,
   stressPct: number,
   studyMinutes: number,
   activeHabitsCount: number
 ): DailyCapacityResult {
-  const sleepAdequacy = Math.min((sleep?.hours ?? 7) / 8, 1);
+  if (recoveryScore === null && (!sleep || !sleep.hours)) {
+    return {
+      score: null,
+      level: "INSUFFICIENT",
+      confidence: "INSUFFICIENT",
+      deepWorkAllocation: 0,
+      exerciseAllocation: 0,
+      learningAllocation: 0,
+      recoveryAllocation: 0,
+      recommendedFocusMinutes: 0,
+      recommendedWorkoutIntensity: "rest",
+      interpretation: "Log your sleep or vitals to calculate today's operational capacity.",
+      evidence: ["No recovery or sleep data logged for today"],
+    };
+  }
+
+  const effRecovery =
+    recoveryScore ??
+    (sleep && sleep.hours ? Math.min(100, Math.round((Number(sleep.hours) / 8) * 100)) : 50);
+  const sleepAdequacy =
+    sleep && sleep.hours ? Math.min(Number(sleep.hours) / 8, 1) : effRecovery / 100;
   const stressDeduction = (stressPct / 100) * 15;
   const loadDeduction = Math.min(studyMinutes / 300, 1) * 10;
 
   const rawScore =
-    recoveryScore * 0.55 +
+    effRecovery * 0.55 +
     sleepAdequacy * 100 * 0.35 +
     10 -
     stressDeduction -
@@ -244,7 +340,6 @@ export function calculateDeterministicDailyCapacity(
     recommendedWorkoutIntensity = "rest";
   }
 
-  // Allocations based on capacity score
   const deepWorkAllocation = Math.min(95, Math.round(score * 0.9));
   const exerciseAllocation =
     score >= 70
@@ -253,19 +348,10 @@ export function calculateDeterministicDailyCapacity(
   const learningAllocation = Math.min(90, Math.round(score * 0.8));
   const recoveryAllocation = Math.max(20, Math.round(100 - score * 0.7));
 
-  const confidence: ConfidenceLevel = recoveryScore > 0 ? "HIGH" : "MEDIUM";
-
-  const evidence = [
-    `Recovery input: ${recoveryScore}%`,
-    `Sleep duration input: ${sleep?.hours ?? 0}h`,
-    `Stress level input: ${stressPct}%`,
-    `Active habit load: ${activeHabitsCount} habits`,
-  ];
-
   return {
     score,
     level,
-    confidence,
+    confidence: recoveryScore !== null ? "HIGH" : "MEDIUM",
     deepWorkAllocation,
     exerciseAllocation,
     learningAllocation,
@@ -273,7 +359,11 @@ export function calculateDeterministicDailyCapacity(
     recommendedFocusMinutes,
     recommendedWorkoutIntensity,
     interpretation: "",
-    evidence,
+    evidence: [
+      `Recovery factor: ${recoveryScore !== null ? `${recoveryScore}%` : "Derived from sleep"}`,
+      `Sleep logged: ${sleep?.hours ? `${sleep.hours}h` : "Not recorded"}`,
+      `Active routine load: ${activeHabitsCount} habits`,
+    ],
   };
 }
 
@@ -284,15 +374,14 @@ export function calculateDeterministicWorkload(
   habits: Habit[],
   workoutsToday: Workout[],
   studyMinutesToday: number,
-  capacityScore: number
+  capacityScore: number | null
 ): WorkloadEstimate {
-  // Planned minutes: habits (20m each) + workouts + focus
   const habitMinutes = habits.length * 20;
   const workoutMinutes = workoutsToday.reduce((acc, w) => acc + (w.duration_min || 45), 0);
   const plannedMinutes = habitMinutes + workoutMinutes + studyMinutesToday;
 
-  // Recommended minutes proportional to capacity (scale between 90m and 270m)
-  const recommendedMinutes = Math.round(90 + (capacityScore / 100) * 180);
+  const effCapacity = capacityScore ?? 65;
+  const recommendedMinutes = Math.round(90 + (effCapacity / 100) * 180);
   const diffPct =
     recommendedMinutes > 0
       ? Math.round(((plannedMinutes - recommendedMinutes) / recommendedMinutes) * 100)
@@ -327,7 +416,6 @@ export function calculateCompletionProbabilities(
   trackedDaysCount: number
 ): CompletionProbabilityItem[] {
   return habits.map((habit) => {
-    // Check minimum threshold
     if (trackedDaysCount < 7) {
       return {
         habitId: habit.id,
@@ -338,7 +426,6 @@ export function calculateCompletionProbabilities(
       };
     }
 
-    // Deterministic model based on streak and consistency
     let base = 65;
     if (habit.streak >= 14) base = 92;
     else if (habit.streak >= 7) base = 85;
@@ -361,6 +448,7 @@ export function calculateCompletionProbabilities(
 
 /**
  * Aggregates Health Trends over 7D, 30D, or 90D time horizons.
+ * Pure deterministic mapping: Never invents fake 7.2h sleep or 65ms HRV.
  */
 export function calculateHealthTrends(
   healthHistory: HealthMetric[],
@@ -372,7 +460,6 @@ export function calculateHealthTrends(
   const points: HealthTrendPoint[] = [];
   const now = new Date();
 
-  // Map by ISO date string
   const healthMap = new Map<string, HealthMetric>();
   healthHistory.forEach((h) => {
     const key = h.recorded_at.split("T")[0];
@@ -404,16 +491,27 @@ export function calculateHealthTrends(
 
     const h = healthMap.get(dateKey);
     const sl = sleepMap.get(dateKey);
-    const cals = workoutMap.get(dateKey) || h?.calories_burned || 0;
-    const focusMins = studyMap.get(dateKey) || 0;
+    const cals = workoutMap.get(dateKey) ?? (h?.calories_burned ?? null);
+    const focusMins = studyMap.get(dateKey) ?? 0;
+
+    const hasData = Boolean(h || sl || workoutMap.has(dateKey) || studyMap.has(dateKey));
 
     points.push({
       date: dateKey,
-      sleepHours: sl ? Number(sl.hours) : h ? 7.2 : 0,
-      recoveryScore: h?.recovery_score ?? (sl ? Math.round(Number(sl.hours) * 11) : 0),
-      hrvMs: h?.hrv_ms ?? 65,
-      caloriesBurned: cals,
+      sleepHours: sl ? Number(sl.hours) : null,
+      recoveryScore:
+        h?.recovery_score !== undefined && h?.recovery_score !== null
+          ? Number(h.recovery_score)
+          : sl
+          ? Math.min(100, Math.round((Number(sl.hours) / 8) * 100))
+          : null,
+      hrvMs:
+        h?.hrv_ms !== undefined && h?.hrv_ms !== null && Number(h.hrv_ms) > 0
+          ? Number(h.hrv_ms)
+          : null,
+      caloriesBurned: cals !== null && cals > 0 ? cals : null,
       focusMinutes: focusMins,
+      hasData,
     });
   }
 
@@ -428,12 +526,18 @@ export function evaluateDataAvailability(
   sleep: SleepLog | null,
   historyCount: number
 ): DataAvailabilityStatus {
-  if (!metrics && !sleep) return "MISSING";
-  if (historyCount === 0) return "INSUFFICIENT";
-  if (!metrics || !sleep) return "PARTIAL";
+  const hasSleep = sleep !== null && sleep.hours !== null && Number(sleep.hours) > 0;
+  const hasVitals =
+    metrics !== null &&
+    ((metrics.hrv_ms !== null && metrics.hrv_ms > 0) ||
+      (metrics.hydration_pct !== null && metrics.hydration_pct > 0) ||
+      (metrics.heart_rate !== null && metrics.heart_rate > 0));
 
-  // Check staleness (if recorded_at is > 48h ago)
-  if (metrics.recorded_at) {
+  if (!hasSleep && !hasVitals) return "MISSING";
+  if (historyCount < 3) return "INSUFFICIENT";
+  if (!hasSleep || !hasVitals) return "PARTIAL";
+
+  if (metrics?.recorded_at) {
     const recordedTime = new Date(metrics.recorded_at).getTime();
     const twoDaysMs = 48 * 60 * 60 * 1000;
     if (Date.now() - recordedTime > twoDaysMs) {

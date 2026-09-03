@@ -1,17 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AiHeroCard from "./AiHeroCard";
-import QuickAiActions from "./QuickAiActions";
 import SleepIntelligenceSection from "./SleepIntelligenceSection";
 import RecoveryIntelligenceCard from "./RecoveryIntelligenceCard";
-import HealthTrendsSection from "./HealthTrendsSection";
-import AiInsightsSection from "./AiInsightsSection";
-import DailyCapacityCard from "./DailyCapacityCard";
 import PersonalizedRecommendationCard from "./PersonalizedRecommendationCard";
+import HealthTrendsSection from "./HealthTrendsSection";
 import AiAssistantWidget from "./AiAssistantWidget";
-import LongTermIntelligenceSection from "./LongTermIntelligenceSection";
 import AiWorkflowModal from "./AiWorkflowModal";
 
 import {
@@ -75,13 +71,17 @@ interface WorkflowModalData {
 
 interface HealthIntelligenceCenterProps {
   onOpenSleepModal: () => void;
+  onOpenVitalsModal?: () => void;
   onShowToast?: (msg: string) => void;
 }
 
 export default function HealthIntelligenceCenter({
   onOpenSleepModal,
+  onOpenVitalsModal,
   onShowToast,
 }: HealthIntelligenceCenterProps) {
+  const assistantRef = useRef<HTMLDivElement>(null);
+
   // ─── Data Access Layer ──────────────────────────────────────
   const { metrics, loading: mLoading } = useHealthMetrics();
   const { data: healthHistory } = useHealthHistory(30);
@@ -103,22 +103,12 @@ export default function HealthIntelligenceCenter({
     );
   }, [metrics, latestSleep, healthHistory, workouts, habits]);
 
-  const dailyCapacity = useMemo(() => {
-    return calculateDeterministicDailyCapacity(
-      recoveryIntel.score,
-      latestSleep,
-      metrics?.stress_pct ?? 25,
-      studyStats?.todayMinutes ?? 0,
-      habits.length
-    );
-  }, [recoveryIntel.score, latestSleep, metrics?.stress_pct, studyStats?.todayMinutes, habits.length]);
-
   const trendPoints = useMemo(() => {
     return calculateHealthTrends(
       healthHistory || [],
       sleepHistory || [],
       workouts,
-      [], // Study sessions mapped inside history
+      [],
       90
     );
   }, [healthHistory, sleepHistory, workouts]);
@@ -155,9 +145,14 @@ export default function HealthIntelligenceCenter({
       id: "msg-initial",
       role: "assistant",
       content:
-        "Welcome to your Health Intelligence Center. I've synced your sleep, HRV, and workload telemetry. How can I help calibrate your performance or recovery today?",
+        "Welcome to your Health Intelligence Center. I am grounded in your recorded sleep, HRV, and daily workload telemetry. How can I help optimize your schedule, recovery, or training today?",
       timestamp: "Just now",
-      actionChips: ["Why am I tired?", "Should I train today?", "Build My Day"],
+      actionChips: [
+        "How was my sleep?",
+        "Am I ready for a heavy workout?",
+        "Why is my recovery low?",
+        "How should I adjust today's schedule?",
+      ],
     },
   ]);
   const [assistantLoading, setAssistantLoading] = useState(false);
@@ -211,12 +206,12 @@ export default function HealthIntelligenceCenter({
       });
 
     // Load Sleep Analysis if sleep is present
-    if (latestSleep && latestSleep.hours > 0) {
+    if (latestSleep && Number(latestSleep.hours) > 0) {
       generateSleepAnalysisAction(
         {
           hours: Number(latestSleep.hours),
-          deep_pct: Number(latestSleep.deep_pct),
-          rem_pct: Number(latestSleep.rem_pct),
+          deep_pct: Number(latestSleep.deep_pct ?? 0),
+          rem_pct: Number(latestSleep.rem_pct ?? 0),
           quality: latestSleep.quality ?? undefined,
           notes: latestSleep.notes ?? undefined,
         },
@@ -280,7 +275,14 @@ export default function HealthIntelligenceCenter({
     [messages, contextBundle]
   );
 
-  // Apply Plan Handler (Propose -> User Confirms -> Backend Validates & Executes)
+  // Handle Scroll to Assistant
+  const handleScrollToAssistant = useCallback(() => {
+    if (assistantRef.current) {
+      assistantRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  // Apply Plan Handler
   const handleApplyPlan = useCallback(
     (plan: PersonalizedPlan) => {
       if (!plan.habits || plan.habits.length === 0) return;
@@ -315,7 +317,7 @@ export default function HealthIntelligenceCenter({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col gap-8 sm:gap-10 w-full max-w-full pb-32 lg:pb-20"
+      className="flex flex-col gap-6 sm:gap-8 w-full max-w-full pb-32 lg:pb-20"
     >
       {/* Workflow Modal Dialog */}
       <AnimatePresence>
@@ -335,40 +337,36 @@ export default function HealthIntelligenceCenter({
         )}
       </AnimatePresence>
 
-      {/* ─── SECTION 1: AI HEALTH INTELLIGENCE HERO ──────────────── */}
+      {/* ─── 1. HEALTH STATUS OVERVIEW ───────────────────────────── */}
       <AiHeroCard
         heroData={heroData}
         loading={heroLoading}
+        onOpenSleepModal={onOpenSleepModal}
+        onOpenVitalsModal={onOpenVitalsModal}
+        onAskAi={handleScrollToAssistant}
         onBuildDay={() => handleTriggerWorkflow("build_day")}
-        onAnalyzeRecovery={() => handleTriggerWorkflow("analyze_recovery")}
       />
 
-      {/* ─── SECTION 2: QUICK AI ACTIONS ─────────────────────────── */}
-      <QuickAiActions onTriggerAction={handleTriggerWorkflow} />
-
-      {/* ─── SECTION 3: SLEEP LOGGING & INTELLIGENCE ─────────────── */}
+      {/* ─── 2. SLEEP ────────────────────────────────────────────── */}
       <SleepIntelligenceSection
         latestSleep={latestSleep}
         loading={sLoading}
         sleepAnalysis={sleepAnalysis}
         analyzingSleep={analyzingSleep}
+        baselineSleepHours={contextBundle.sevenDaySummary.avgSleepHours}
         onOpenSleepModal={onOpenSleepModal}
         onViewFullAnalysis={() => handleTriggerWorkflow("improve_sleep")}
       />
 
-      {/* ─── SECTION 4: RECOVERY INTELLIGENCE ────────────────────── */}
+      {/* ─── 3. RECOVERY ─────────────────────────────────────────── */}
       <RecoveryIntelligenceCard
         data={recoveryIntel}
         loading={mLoading}
+        onOpenSleepModal={onOpenSleepModal}
+        onOpenVitalsModal={onOpenVitalsModal}
       />
 
-      {/* ─── SECTION 7: DAILY CAPACITY ───────────────────────────── */}
-      <DailyCapacityCard
-        capacity={dailyCapacity}
-        loading={mLoading}
-      />
-
-      {/* ─── SECTION 8: PERSONALIZED RECOMMENDATION ──────────────── */}
+      {/* ─── 4. TODAY'S RECOMMENDATION ──────────────────────────── */}
       <PersonalizedRecommendationCard
         recommendation={recommendation}
         loading={recLoading}
@@ -376,31 +374,23 @@ export default function HealthIntelligenceCenter({
         onDismiss={() => setRecommendation(null)}
       />
 
-      {/* ─── SECTION 5: HEALTH TRENDS (7D / 30D / 90D) ──────────── */}
+      {/* ─── 5. TRENDS & INSIGHTS ────────────────────────────────── */}
       <HealthTrendsSection
         trendData={trendPoints}
-        loading={mLoading}
-      />
-
-      {/* ─── SECTION 6: AI EVIDENCE-BACKED INSIGHTS ──────────────── */}
-      <AiInsightsSection
         insights={insights}
-        loading={insightsLoading}
+        loading={mLoading || insightsLoading}
+        onOpenSleepModal={onOpenSleepModal}
+        onOpenVitalsModal={onOpenVitalsModal}
       />
 
-      {/* ─── SECTION 9: AI PERSONAL ASSISTANT ────────────────────── */}
-      <AiAssistantWidget
-        messages={messages}
-        loading={assistantLoading}
-        onSendMessage={handleSendMessage}
-      />
-
-      {/* ─── SECTION 10: LONG-TERM HEALTH INTELLIGENCE ───────────── */}
-      <LongTermIntelligenceSection
-        daysTracked={Math.max(healthHistory?.length || 0, 14)}
-        sleepDebtHours={1.2}
-        resilienceScore={88}
-      />
+      {/* ─── 6. INTERACTIVE AI ASSISTANT ─────────────────────────── */}
+      <div ref={assistantRef}>
+        <AiAssistantWidget
+          messages={messages}
+          loading={assistantLoading}
+          onSendMessage={handleSendMessage}
+        />
+      </div>
     </motion.div>
   );
 }

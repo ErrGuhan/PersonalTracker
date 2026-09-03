@@ -566,14 +566,17 @@ function StudyView({ onOpenStudyModal }: { onOpenStudyModal: () => void }) {
    ───────────────────────────────────────────────────────── */
 function HealthView({
   onOpenSleepModal,
+  onOpenVitalsModal,
   onShowToast,
 }: {
   onOpenSleepModal: () => void;
+  onOpenVitalsModal?: () => void;
   onShowToast?: (msg: string) => void;
 }) {
   return (
     <HealthIntelligenceCenter
       onOpenSleepModal={onOpenSleepModal}
+      onOpenVitalsModal={onOpenVitalsModal}
       onShowToast={onShowToast}
     />
   );
@@ -870,6 +873,7 @@ export default function Home() {
         return (
           <HealthView
             onOpenSleepModal={() => setShowSleepModal(true)}
+            onOpenVitalsModal={() => setShowVitalsModal(true)}
             onShowToast={showToast}
           />
         );

@@ -11,13 +11,12 @@ interface AiAssistantWidgetProps {
 }
 
 const CHIPS = [
+  "How was my sleep?",
+  "Am I ready for a heavy workout?",
+  "Why is my recovery low?",
+  "How should I adjust today's schedule?",
   "Why am I tired?",
-  "Should I train today?",
-  "How was my recovery?",
   "Build My Day",
-  "Improve my sleep",
-  "Analyze my progress",
-  "Make tomorrow easier",
 ];
 
 export default function AiAssistantWidget({

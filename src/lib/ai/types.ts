@@ -11,38 +11,47 @@ export type ConfidenceLevel = "HIGH" | "MEDIUM" | "LOW" | "INSUFFICIENT";
 
 export interface HeroHealthIntelligence {
   greeting: string;
-  recoveryScore: number;
-  sleepDurationHours: number;
-  capacityScore: number;
-  capacityLevel: "PEAK" | "HIGH" | "MODERATE" | "LOW" | "RECOVERY";
-  trendIndicator: "up" | "down" | "neutral";
+  recoveryScore: number | null;
+  sleepDurationHours: number | null;
+  capacityScore: number | null;
+  capacityLevel: "PEAK" | "HIGH" | "MODERATE" | "LOW" | "RECOVERY" | "INSUFFICIENT";
+  trendIndicator: "up" | "down" | "neutral" | "unknown";
   headline: string;
   interpretation: string;
   confidence: ConfidenceLevel;
+  availability: DataAvailabilityStatus;
   evidence: string[];
 }
 
+export interface RecoveryFactorDetail {
+  score: number | null; // 0–100 or null if unrecorded
+  isRecorded: boolean;
+  rawValue?: number | string | null;
+  unit?: string;
+  statusText?: string;
+}
+
 export interface RecoveryIntelligenceResult {
-  score: number;
-  baseline: number;
-  trend: "improving" | "declining" | "stable";
+  score: number | null;
+  baseline: number | null;
+  trend: "improving" | "declining" | "stable" | "insufficient_data";
   confidence: ConfidenceLevel;
   availability: DataAvailabilityStatus;
   factors: {
-    sleep: number;       // 0–100
-    activity: number;    // 0–100
-    hrv: number;         // 0–100
-    spo2: number;        // 0–100
-    workload: number;    // 0–100
-    consistency: number; // 0–100
+    sleep: RecoveryFactorDetail;
+    activity: RecoveryFactorDetail;
+    hrv: RecoveryFactorDetail;
+    spo2: RecoveryFactorDetail;
+    workload: RecoveryFactorDetail;
+    consistency: RecoveryFactorDetail;
   };
   interpretation: string;
   evidence: string[];
 }
 
 export interface DailyCapacityResult {
-  score: number; // 0–100
-  level: "PEAK" | "HIGH" | "MODERATE" | "LOW" | "RECOVERY_NEEDED";
+  score: number | null; // 0–100 or null
+  level: "PEAK" | "HIGH" | "MODERATE" | "LOW" | "RECOVERY_NEEDED" | "INSUFFICIENT";
   confidence: ConfidenceLevel;
   deepWorkAllocation: number; // 0–100
   exerciseAllocation: number; // 0–100
@@ -84,11 +93,12 @@ export interface AiInsightItem {
 
 export interface HealthTrendPoint {
   date: string;
-  sleepHours: number;
-  recoveryScore: number;
-  hrvMs: number;
-  caloriesBurned: number;
+  sleepHours: number | null;
+  recoveryScore: number | null;
+  hrvMs: number | null;
+  caloriesBurned: number | null;
   focusMinutes: number;
+  hasData: boolean;
 }
 
 export interface CompletionProbabilityItem {
@@ -127,7 +137,7 @@ export interface PersonalizedPlan {
 }
 
 export interface MorningBriefResult {
-  recoveryScore: number;
+  recoveryScore: number | null;
   sleepDuration: string;
   capacityLevel: string;
   headline: string;

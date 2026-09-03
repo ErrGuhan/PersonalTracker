@@ -11,24 +11,30 @@ import type {
   StudySession,
   AiUserProfile,
 } from "@/lib/database.types";
-import { calculateDeterministicRecovery, calculateRecoveryBaseline } from "./deterministic";
+import {
+  calculateDeterministicRecovery,
+  calculateRecoveryBaseline,
+  evaluateDataAvailability,
+} from "./deterministic";
+import type { DataAvailabilityStatus } from "./types";
 
 export interface HealthContextBundle {
+  dataAvailability: DataAvailabilityStatus;
   todaySummary: {
-    recoveryScore: number;
-    sleepHours: number;
-    heartRate: number;
-    hrvMs: number;
-    spo2: number;
-    stressPct: number;
-    hydrationPct: number;
-    caloriesBurned: number;
+    recoveryScore: number | null;
+    sleepHours: number | null;
+    heartRate: number | null;
+    hrvMs: number | null;
+    spo2: number | null;
+    stressPct: number | null;
+    hydrationPct: number | null;
+    caloriesBurned: number | null;
     focusMinutes: number;
   };
   sevenDaySummary: {
-    avgRecovery: number;
-    avgSleepHours: number;
-    avgHrvMs: number;
+    avgRecovery: number | null;
+    avgSleepHours: number | null;
+    avgHrvMs: number | null;
     totalWorkoutMinutes: number;
     totalFocusMinutes: number;
     trackedDaysCount: number;
@@ -67,7 +73,17 @@ export function buildHealthContextBundle(
             recent7Sleep.length
           ).toFixed(1)
         )
-      : latestSleep?.hours ?? 7.0;
+      : latestSleep?.hours != null && Number(latestSleep.hours) > 0
+      ? Number(latestSleep.hours)
+      : null;
+
+  const validHrvs = healthHistory.filter((h) => h.hrv_ms != null && h.hrv_ms > 0);
+  const avgHrvMs =
+    validHrvs.length > 0
+      ? Math.round(validHrvs.reduce((s, h) => s + (h.hrv_ms || 0), 0) / validHrvs.length)
+      : metrics?.hrv_ms != null && metrics.hrv_ms > 0
+      ? metrics.hrv_ms
+      : null;
 
   const recent7Workouts = workouts.slice(0, 7);
   const totalWorkoutMinutes = recent7Workouts.reduce(
@@ -90,16 +106,20 @@ export function buildHealthContextBundle(
   const sortedHabits = [...habits].sort((a, b) => b.streak - a.streak);
   const strongestHabit = sortedHabits[0]?.title ?? "None";
 
+  const trackedDaysCount = Math.max(daysEvaluated, recent7Sleep.length);
+  const dataAvailability = evaluateDataAvailability(metrics, latestSleep, trackedDaysCount);
+
   return {
+    dataAvailability,
     todaySummary: {
       recoveryScore: currentRecovery,
-      sleepHours: latestSleep?.hours ?? 0,
-      heartRate: metrics?.heart_rate ?? 0,
-      hrvMs: metrics?.hrv_ms ?? 0,
-      spo2: Number(metrics?.spo2 ?? 0),
-      stressPct: metrics?.stress_pct ?? 0,
-      hydrationPct: metrics?.hydration_pct ?? 0,
-      caloriesBurned: metrics?.calories_burned ?? 0,
+      sleepHours: latestSleep?.hours != null && Number(latestSleep.hours) > 0 ? Number(latestSleep.hours) : null,
+      heartRate: metrics?.heart_rate != null && metrics.heart_rate > 0 ? metrics.heart_rate : null,
+      hrvMs: metrics?.hrv_ms != null && metrics.hrv_ms > 0 ? metrics.hrv_ms : null,
+      spo2: metrics?.spo2 != null && Number(metrics.spo2) > 0 ? Number(metrics.spo2) : null,
+      stressPct: metrics?.stress_pct != null && metrics.stress_pct > 0 ? metrics.stress_pct : null,
+      hydrationPct: metrics?.hydration_pct != null && metrics.hydration_pct > 0 ? metrics.hydration_pct : null,
+      caloriesBurned: metrics?.calories_burned != null && metrics.calories_burned > 0 ? metrics.calories_burned : null,
       focusMinutes: studySessions
         .filter(
           (s) =>
@@ -110,10 +130,10 @@ export function buildHealthContextBundle(
     sevenDaySummary: {
       avgRecovery: baselineScore,
       avgSleepHours,
-      avgHrvMs: metrics?.hrv_ms ?? 68,
+      avgHrvMs,
       totalWorkoutMinutes,
       totalFocusMinutes,
-      trackedDaysCount: Math.max(daysEvaluated, recent7Sleep.length),
+      trackedDaysCount,
     },
     habitSummary: {
       totalHabits: habits.length,
@@ -138,21 +158,63 @@ export function buildHealthContextBundle(
  * Formats context into a concise Markdown string for prompt injection.
  */
 export function formatContextPromptString(bundle: HealthContextBundle): string {
+  const recoveryText =
+    bundle.todaySummary.recoveryScore !== null
+      ? `${bundle.todaySummary.recoveryScore}%`
+      : "NOT_RECORDED (no recovery calculation available)";
+
+  const sleepText =
+    bundle.todaySummary.sleepHours !== null
+      ? `${bundle.todaySummary.sleepHours}h`
+      : "NOT_RECORDED (user has not logged last night's sleep)";
+
+  const hrvText =
+    bundle.todaySummary.hrvMs !== null
+      ? `${bundle.todaySummary.hrvMs}ms`
+      : "NOT_RECORDED";
+
+  const spo2Text =
+    bundle.todaySummary.spo2 !== null
+      ? `${bundle.todaySummary.spo2}%`
+      : "NOT_RECORDED";
+
+  const stressText =
+    bundle.todaySummary.stressPct !== null
+      ? `${bundle.todaySummary.stressPct}%`
+      : "NOT_RECORDED";
+
+  const baselineRecoveryText =
+    bundle.sevenDaySummary.avgRecovery !== null
+      ? `${bundle.sevenDaySummary.avgRecovery}%`
+      : `INSUFFICIENT_DATA (only ${bundle.sevenDaySummary.trackedDaysCount} days tracked; requires at least 3 days)`;
+
+  const baselineSleepText =
+    bundle.sevenDaySummary.avgSleepHours !== null
+      ? `${bundle.sevenDaySummary.avgSleepHours}h`
+      : "INSUFFICIENT_DATA";
+
   return `
 [USER CONTEXT - GROUND TRUTH]
-Today Recovery: ${bundle.todaySummary.recoveryScore}%
-Today Sleep: ${bundle.todaySummary.sleepHours}h
-Today Biometrics: HRV ${bundle.todaySummary.hrvMs}ms, SpO2 ${bundle.todaySummary.spo2}%, Stress ${bundle.todaySummary.stressPct}%
+Data Availability Status: ${bundle.dataAvailability}
+Today Recovery: ${recoveryText}
+Today Sleep: ${sleepText}
+Today Biometrics: HRV ${hrvText}, SpO2 ${spo2Text}, Stress ${stressText}
 Today Focus: ${bundle.todaySummary.focusMinutes}m
-7-Day Baseline Recovery: ${bundle.sevenDaySummary.avgRecovery}%
-7-Day Avg Sleep: ${bundle.sevenDaySummary.avgSleepHours}h
+7-Day Baseline Recovery: ${baselineRecoveryText}
+7-Day Avg Sleep: ${baselineSleepText}
 7-Day Workout Total: ${bundle.sevenDaySummary.totalWorkoutMinutes}m
 Habits: ${bundle.habitSummary.completedToday}/${bundle.habitSummary.totalHabits} completed today (Top: ${bundle.habitSummary.strongestHabit}, Avg Streak: ${bundle.habitSummary.averageStreak}d)
 Tracked Days History: ${bundle.sevenDaySummary.trackedDaysCount} days
 ${
   bundle.profileSummary
-    ? `User Profile: Priorities: ${bundle.profileSummary.currentPriorities?.join(", ")}; Planning: ${bundle.profileSummary.planningStyle}; Workout style: ${bundle.profileSummary.preferredWorkoutStyle}`
+    ? `User Profile: Priorities: ${bundle.profileSummary.currentPriorities?.join(", ") || "General health"}; Planning: ${bundle.profileSummary.planningStyle || "Balanced"}; Workout style: ${bundle.profileSummary.preferredWorkoutStyle || "Hybrid"}`
     : "Personalization: Default baseline mode"
 }
+
+IMPORTANT AI REASONING RULES:
+- Any metric listed as NOT_RECORDED or INSUFFICIENT_DATA has NOT been measured or logged by the user.
+- DO NOT invent, assume, fabricate, or hallucinate values for unrecorded metrics (e.g. do NOT assume 8 hours sleep or 65ms HRV).
+- If the user asks about an unrecorded metric, clearly inform them it has not been recorded yet and invite them to log it.
+- Keep all summaries concise, evidence-based, and aligned strictly with the Ground Truth above.
 `.trim();
 }

@@ -22,19 +22,14 @@ export default function PersonalizedRecommendationCard({
 
   if (!recommendation && !loading) return null;
 
-  const title = recommendation?.title ?? "Calibrate Workload for Recovery";
+  const title = recommendation?.title ?? "Calibrating Daily Plan";
   const summary =
     recommendation?.summary ??
-    "Your recovery is good enough for moderate exercise, but your sleep was slightly below baseline. Prioritize 2 focused study sessions, moderate training, and an early bedtime.";
-  const actions = recommendation?.actions ?? [
-    { id: "a1", label: "2 Focused Work Sessions", detail: "45-min blocks", category: "focus" },
-    { id: "a2", label: "30–40m Moderate Exercise", detail: "Zone 2 aerobic conditioning", category: "workout" },
-    { id: "a3", label: "Avoid late-night workload", detail: "No intense work after 21:00", category: "recovery" },
-    { id: "a4", label: "Target 7.5–8h sleep tonight", detail: "Digital shutdown by 22:15", category: "sleep" },
-  ];
+    "Analyzing your current biometrics and recent activity volume to generate calibrated daily recommendations.";
+  const actions = recommendation?.actions ?? [];
   const whyExplanation =
     recommendation?.whyExplanation ??
-    "Derived from comparing your current recovery (84%) against your 14-day rolling average (80%) and recent study intensity.";
+    "Derived from comparing your current physiological recovery against your personal baseline and scheduled load.";
 
   const handleApply = () => {
     if (recommendation) {

@@ -14,7 +14,7 @@ import type {
 } from "./database.types";
 
 export const PRIMARY_USER_EMAIL = "guhan24td0781@svcet.ac.in";
-export const DEMO_USER_ID = "guhan-24td0781-svcet-ac-in";
+export const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -33,24 +33,6 @@ export const INITIAL_AI_PROFILE: AiUserProfile = {
   personalizationEnabled: true,
 };
 
-// Zero-State Initial Baseline Configurations for Brand New User
-const INITIAL_HEALTH_METRICS: HealthMetric = {
-  id: "hm-initial-1",
-  user_id: DEMO_USER_ID,
-  recorded_at: new Date().toISOString(),
-  heart_rate: 0,
-  steps: 0,
-  hydration_pct: 0,
-  spo2: 0,
-  body_temp: 0,
-  hrv_ms: 0,
-  stress_pct: 0,
-  vo2_max: 0,
-  calories_burned: 0,
-  recovery_score: 0,
-  created_at: new Date().toISOString(),
-};
-
 const INITIAL_WORKOUTS: Workout[] = [];
 const INITIAL_STUDY_SESSIONS: StudySession[] = [];
 
@@ -65,18 +47,6 @@ const INITIAL_MOOD_LOG: MoodLog = {
   created_at: new Date().toISOString(),
 };
 
-const INITIAL_SLEEP_LOG: SleepLog = {
-  id: "sl-initial",
-  user_id: DEMO_USER_ID,
-  hours: 0,
-  deep_pct: 0,
-  rem_pct: 0,
-  light_pct: 0,
-  awake_pct: 0,
-  sleep_date: todayStr(),
-  created_at: new Date().toISOString(),
-};
-
 const INITIAL_GOALS: Goal[] = [];
 const INITIAL_HABITS: Habit[] = [];
 
@@ -88,47 +58,55 @@ const INITIAL_HYDRATION: HydrationLog = {
 
 const INITIAL_MEALS: MealLog[] = [];
 
-// Helper to calculate Recovery Score dynamically
-function calculateDynamicRecovery(metrics: HealthMetric, sleep: SleepLog | null): number {
-  const sleepHrs = sleep?.hours ?? 0;
-  const hydrationPct = metrics.hydration_pct ?? 0;
-  const hrv = metrics.hrv_ms ?? 0;
-  const stress = metrics.stress_pct ?? 0;
-
-  if (sleepHrs === 0 && hydrationPct === 0 && hrv === 0 && (metrics.steps ?? 0) === 0 && (metrics.calories_burned ?? 0) === 0) {
-    return 0;
-  }
-
-  const score =
-    (sleepHrs / 8) * 35 +
-    (hydrationPct / 100) * 25 +
-    (Math.min(hrv, 100) / 100) * 25 +
-    ((100 - stress) / 100) * 15;
-
-  return Math.min(100, Math.max(0, Math.round(score)));
-}
-
 function notifyUpdate() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("lifesync-db-update"));
   }
 }
 
-function getLocal<T>(key: string, fallback: T): T {
+let activeScopedUserId = DEMO_USER_ID;
+
+export function setActiveScopedUserId(id: string): void {
+  activeScopedUserId = id;
+  if (typeof window !== "undefined") {
+    localStorage.setItem("lifesync_active_uid", id);
+  }
+}
+
+export function getScopedUserId(): string {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem("lifesync_active_uid");
+    if (stored) return stored;
+  }
+  return activeScopedUserId;
+}
+
+function getLocalKey(key: string, userId?: string): string {
+  const uid = userId || getScopedUserId();
+  return `lifesync_${uid}_${key}`;
+}
+
+function getLocal<T>(key: string, fallback: T, userId?: string): T {
   if (typeof window === "undefined") return fallback;
   try {
-    const raw = localStorage.getItem(`lifesync_${key}`);
-    return raw ? JSON.parse(raw) : fallback;
+    const scopedRaw = localStorage.getItem(getLocalKey(key, userId));
+    if (scopedRaw !== null) return JSON.parse(scopedRaw);
+
+    // Backward-compatibility fallback for legacy un-scoped data
+    const legacyRaw = localStorage.getItem(`lifesync_${key}`);
+    if (legacyRaw !== null) return JSON.parse(legacyRaw);
+
+    return fallback;
   } catch (err) {
     console.warn(`[LocalStorage] Read ${key} error:`, err);
     return fallback;
   }
 }
 
-function setLocal<T>(key: string, value: T): T {
+function setLocal<T>(key: string, value: T, userId?: string): T {
   if (typeof window !== "undefined") {
     try {
-      localStorage.setItem(`lifesync_${key}`, JSON.stringify(value));
+      localStorage.setItem(getLocalKey(key, userId), JSON.stringify(value));
       notifyUpdate();
     } catch (err) {
       console.warn(`[LocalStorage] Write ${key} error:`, err);
@@ -140,11 +118,14 @@ function setLocal<T>(key: string, value: T): T {
 export async function getActiveUserId(): Promise<string> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user?.id) return user.id;
+    if (user?.id) {
+      setActiveScopedUserId(user.id);
+      return user.id;
+    }
   } catch {
     // Fallback if not authenticated yet
   }
-  return DEMO_USER_ID;
+  return getScopedUserId();
 }
 
 // ─────────────────────────────────────────────────────────
@@ -166,10 +147,7 @@ export async function getLatestHealthMetrics(): Promise<HealthMetric | null> {
   } catch (err) {
     console.warn("[DB] health_metrics query fallback to local:", err);
   }
-  const current = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
-  const sleep = getLocal("sleep_log", INITIAL_SLEEP_LOG);
-  const calculatedRec = calculateDynamicRecovery(current, sleep);
-  return { ...current, recovery_score: calculatedRec };
+  return getLocal<HealthMetric | null>("health_metrics", null, userId);
 }
 
 export async function getHealthMetricHistory(days = 7): Promise<HealthMetric[]> {
@@ -185,29 +163,43 @@ export async function getHealthMetricHistory(days = 7): Promise<HealthMetric[]> 
       .gte("recorded_at", since.toISOString())
       .order("recorded_at", { ascending: true });
 
-    if (!error && data && data.length > 0) return data as HealthMetric[];
+    if (!error && data) return data as HealthMetric[];
   } catch (err) {
     console.warn("[DB] health_metrics history fallback to local:", err);
   }
-  const current = await getLatestHealthMetrics();
-  return current ? [current] : [INITIAL_HEALTH_METRICS];
+  const history = getLocal<HealthMetric[]>("health_metrics_history", [], userId);
+  return history;
 }
 
 export async function upsertHealthMetrics(
   metrics: Partial<HealthMetric>
 ): Promise<HealthMetric | null> {
   const userId = await getActiveUserId();
-  const current = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
-  const sleep = getLocal("sleep_log", INITIAL_SLEEP_LOG);
-  const tempUpdated: HealthMetric = { ...current, ...metrics };
-  const calcRec = calculateDynamicRecovery(tempUpdated, sleep);
+  const current = getLocal<HealthMetric | null>("health_metrics", null, userId);
+  const now = new Date().toISOString();
 
   const updated: HealthMetric = {
-    ...tempUpdated,
-    recovery_score: calcRec,
-    recorded_at: new Date().toISOString(),
+    id: current?.id || `hm-local-${Date.now()}`,
+    user_id: userId,
+    recorded_at: now,
+    created_at: current?.created_at || now,
+    heart_rate: metrics.heart_rate !== undefined ? metrics.heart_rate : current?.heart_rate ?? null,
+    steps: metrics.steps !== undefined ? metrics.steps : current?.steps ?? null,
+    hydration_pct: metrics.hydration_pct !== undefined ? metrics.hydration_pct : current?.hydration_pct ?? null,
+    spo2: metrics.spo2 !== undefined ? metrics.spo2 : current?.spo2 ?? null,
+    body_temp: metrics.body_temp !== undefined ? metrics.body_temp : current?.body_temp ?? null,
+    hrv_ms: metrics.hrv_ms !== undefined ? metrics.hrv_ms : current?.hrv_ms ?? null,
+    stress_pct: metrics.stress_pct !== undefined ? metrics.stress_pct : current?.stress_pct ?? null,
+    vo2_max: metrics.vo2_max !== undefined ? metrics.vo2_max : current?.vo2_max ?? null,
+    calories_burned: metrics.calories_burned !== undefined ? metrics.calories_burned : current?.calories_burned ?? null,
+    recovery_score: metrics.recovery_score !== undefined ? metrics.recovery_score : current?.recovery_score ?? null,
   };
-  setLocal("health_metrics", updated);
+
+  setLocal("health_metrics", updated, userId);
+  const history = getLocal<HealthMetric[]>("health_metrics_history", [], userId);
+  const todayDate = now.split("T")[0];
+  const filtered = history.filter((h) => !h.recorded_at.startsWith(todayDate));
+  setLocal("health_metrics_history", [...filtered, updated], userId);
 
   try {
     const { data, error } = await supabase
@@ -294,8 +286,8 @@ export async function logWorkout(
   setLocal("workouts", [newWorkout, ...existing]);
 
   // Update calories in health_metrics
-  const currentMetrics = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
-  const updatedBurn = (currentMetrics.calories_burned ?? 0) + workout.calories;
+  const currentMetrics = getLocal<HealthMetric | null>("health_metrics", null);
+  const updatedBurn = ((currentMetrics?.calories_burned ?? 0) as number) + workout.calories;
   await upsertHealthMetrics({ calories_burned: updatedBurn });
 
   try {
@@ -475,28 +467,25 @@ export async function getLatestSleep(): Promise<SleepLog | null> {
   } catch (err) {
     console.warn("[DB] sleep logs fallback to local:", err);
   }
-  return getLocal("sleep_log", INITIAL_SLEEP_LOG);
+  return getLocal<SleepLog | null>("sleep_log", null, userId);
 }
 
 export async function logSleep(
   sleep: Omit<SleepLog, "id" | "user_id" | "created_at">
 ): Promise<SleepLog | null> {
   const userId = await getActiveUserId();
+  const now = new Date().toISOString();
   const newSleep: SleepLog = {
     ...sleep,
     id: `sl-local-${Date.now()}`,
     user_id: userId,
-    created_at: new Date().toISOString(),
+    created_at: now,
   };
 
-  setLocal("sleep_log", newSleep);
-  const currentList = getLocal<SleepLog[]>("sleep_logs_list", []);
-  setLocal("sleep_logs_list", [newSleep, ...currentList.filter(s => s.id !== newSleep.id)]);
-
-  // Recalculate dynamic recovery score
-  const currentMetrics = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
-  const calcRec = calculateDynamicRecovery(currentMetrics, newSleep);
-  setLocal("health_metrics", { ...currentMetrics, recovery_score: calcRec });
+  setLocal("sleep_log", newSleep, userId);
+  const currentList = getLocal<SleepLog[]>("sleep_logs_list", [], userId);
+  const filtered = currentList.filter((s) => s.sleep_date !== newSleep.sleep_date);
+  setLocal("sleep_logs_list", [newSleep, ...filtered], userId);
 
   try {
     const { data, error } = await supabase
@@ -525,11 +514,11 @@ export async function getWeeklySleep(): Promise<SleepLog[]> {
       .gte("sleep_date", since.toISOString().split("T")[0])
       .order("sleep_date", { ascending: true });
 
-    if (!error && data && data.length > 0) return data as SleepLog[];
+    if (!error && data) return data as SleepLog[];
   } catch (err) {
     console.warn("[DB] weekly sleep fallback to local:", err);
   }
-  return getLocal<SleepLog[]>("sleep_logs_list", []);
+  return getLocal<SleepLog[]>("sleep_logs_list", [], userId);
 }
 
 export async function getSleepHistory(days = 30): Promise<SleepLog[]> {
@@ -545,14 +534,11 @@ export async function getSleepHistory(days = 30): Promise<SleepLog[]> {
       .gte("sleep_date", since.toISOString().split("T")[0])
       .order("sleep_date", { ascending: true });
 
-    if (!error && data && data.length > 0) return data as SleepLog[];
+    if (!error && data) return data as SleepLog[];
   } catch (err) {
     console.warn("[DB] sleep history fallback to local:", err);
   }
-  const localList = getLocal<SleepLog[]>("sleep_logs_list", []);
-  if (localList.length > 0) return localList;
-  const latest = getLocal("sleep_log", INITIAL_SLEEP_LOG);
-  return latest.hours > 0 ? [latest] : [];
+  return getLocal<SleepLog[]>("sleep_logs_list", [], userId);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -715,13 +701,11 @@ export function addWater(amountMl: number): HydrationLog {
   setLocal("hydration", updated);
 
   const pct = Math.min(100, Math.round((updated.amountMl / updated.targetMl) * 100));
-  const currentMetrics = getLocal("health_metrics", INITIAL_HEALTH_METRICS);
-  const sleep = getLocal("sleep_log", INITIAL_SLEEP_LOG);
-
-  const tempUpdated = { ...currentMetrics, hydration_pct: pct };
-  const calcRec = calculateDynamicRecovery(tempUpdated, sleep);
-
-  setLocal("health_metrics", { ...tempUpdated, recovery_score: calcRec });
+  const currentMetrics = getLocal<HealthMetric | null>("health_metrics", null);
+  if (currentMetrics) {
+    const tempUpdated = { ...currentMetrics, hydration_pct: pct };
+    setLocal("health_metrics", tempUpdated);
+  }
 
   return updated;
 }
@@ -759,11 +743,11 @@ export function deleteMeal(id: string): MealLog[] {
 export function exportAllDataJSON(): string {
   const data = {
     exportDate: new Date().toISOString(),
-    healthMetrics: getLocal("health_metrics", INITIAL_HEALTH_METRICS),
+    healthMetrics: getLocal("health_metrics", null),
     workouts: getLocal("workouts", INITIAL_WORKOUTS),
     studySessions: getLocal("study_sessions", INITIAL_STUDY_SESSIONS),
     moodLog: getLocal("mood_log", INITIAL_MOOD_LOG),
-    sleepLog: getLocal("sleep_log", INITIAL_SLEEP_LOG),
+    sleepLog: getLocal("sleep_log", null),
     goals: getLocal("goals", INITIAL_GOALS),
     habits: getLocal("habits", INITIAL_HABITS),
     hydration: getLocal("hydration", INITIAL_HYDRATION),
@@ -775,17 +759,15 @@ export function exportAllDataJSON(): string {
 
 export function resetAllDataToDefault() {
   if (typeof window !== "undefined") {
-    localStorage.removeItem("lifesync_health_metrics");
-    localStorage.removeItem("lifesync_workouts");
-    localStorage.removeItem("lifesync_study_sessions");
-    localStorage.removeItem("lifesync_mood_log");
-    localStorage.removeItem("lifesync_sleep_log");
-    localStorage.removeItem("lifesync_sleep_logs_list");
-    localStorage.removeItem("lifesync_goals");
-    localStorage.removeItem("lifesync_habits");
-    localStorage.removeItem("lifesync_hydration");
-    localStorage.removeItem("lifesync_meals");
-    localStorage.removeItem("lifesync_ai_profile");
+    // Clear all lifesync keys (both scoped and legacy)
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("lifesync_")) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
     notifyUpdate();
   }
 }
