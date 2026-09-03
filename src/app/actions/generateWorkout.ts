@@ -1,12 +1,15 @@
 "use server";
 
 import { GoogleGenAI, Type } from "@google/genai";
+import { estimateWorkoutCalories } from "@/lib/fitness/calorieEngine";
 
 export interface ExerciseItem {
   exercise_name: string;
   sets: number;
   reps: string;
   notes: string;
+  duration_min?: number;
+  distance_km?: number;
 }
 
 export interface AiWorkoutResult {
@@ -15,115 +18,321 @@ export interface AiWorkoutResult {
   total_estimated_kcal: number;
   duration_min: number;
   exercises: ExerciseItem[];
+  calorie_source: "CALCULATED" | "ESTIMATED";
+  error?: string;
+}
+
+export interface GeneratedPlanDay {
+  dayNumber: number;
+  title: string;
+  focus: string;
+  isRestDay: boolean;
+  notes?: string;
+  exercises: Array<{
+    name: string;
+    type: "strength" | "cardio" | "stretch" | "bodyweight";
+    sets?: number;
+    reps?: string;
+    durationMin?: number;
+    distanceKm?: number;
+    restSeconds?: number;
+    notes?: string;
+  }>;
+}
+
+export interface GeneratedWorkoutPlanResult {
+  success: boolean;
+  programName: string;
+  goal: "fat_loss" | "muscle_gain" | "strength" | "endurance" | "mobility" | "general_fitness";
+  durationDays: number;
+  days: GeneratedPlanDay[];
   error?: string;
 }
 
 /**
- * Server Action: Generates a tailored workout routine using Gemini API.
- * Uses `@google/genai` with model `gemini-3.7-flash` and structured schema output.
+ * Server Action: Generates a single tailored workout session using Gemini API.
+ * Uses MET-based deterministic calorie calculation for scientific accuracy.
  */
 export async function generateWorkoutAction(userPrompt: string): Promise<AiWorkoutResult> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
-  try {
-    const ai = new GoogleGenAI(apiKey ? { apiKey } : {});
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
-      contents: `You are an elite strength and conditioning coach.
-Generate a structured workout routine based on this goal: "${userPrompt}".
-Calculate estimated calories burned accurately for an athletic adult.
+  if (apiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+        contents: `You are an elite strength and conditioning coach.
+Generate a structured workout routine based on this request: "${userPrompt}".
 Return ONLY valid JSON adhering strictly to the schema.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            workout_name: {
-              type: Type.STRING,
-              description: "Catchy title for the workout session",
-            },
-            total_estimated_kcal: {
-              type: Type.INTEGER,
-              description: "Total estimated calories burned in kcal",
-            },
-            duration_min: {
-              type: Type.INTEGER,
-              description: "Estimated duration of the session in minutes",
-            },
-            exercises: {
-              type: Type.ARRAY,
-              description: "Array of structured exercises",
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  exercise_name: { type: Type.STRING },
-                  sets: { type: Type.INTEGER },
-                  reps: { type: Type.STRING, description: "e.g. 8-12 or 45 sec" },
-                  notes: { type: Type.STRING, description: "Form cues or tempo notes" },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              workout_name: {
+                type: Type.STRING,
+                description: "Catchy title for the workout session",
+              },
+              workout_type: {
+                type: Type.STRING,
+                description: "strength, run, hiit, cardio, or yoga",
+              },
+              duration_min: {
+                type: Type.INTEGER,
+                description: "Estimated duration of the session in minutes",
+              },
+              intensity: {
+                type: Type.STRING,
+                enum: ["low", "moderate", "high"],
+              },
+              exercises: {
+                type: Type.ARRAY,
+                description: "Array of structured exercises",
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    exercise_name: { type: Type.STRING },
+                    sets: { type: Type.INTEGER },
+                    reps: { type: Type.STRING, description: "e.g. 8-12 or 45 sec" },
+                    notes: { type: Type.STRING, description: "Form cues or tempo notes" },
+                  },
+                  required: ["exercise_name", "sets", "reps", "notes"],
                 },
-                required: ["exercise_name", "sets", "reps", "notes"],
               },
             },
+            required: ["workout_name", "duration_min", "exercises"],
           },
-          required: ["workout_name", "total_estimated_kcal", "duration_min", "exercises"],
         },
-      },
-    });
+      });
 
-    const rawText = response.text;
-    if (!rawText) {
-      throw new Error("No response content generated by Gemini.");
+      const rawText = response.text;
+      if (!rawText) throw new Error("No response content generated by Gemini.");
+
+      const parsed = JSON.parse(rawText) as {
+        workout_name: string;
+        workout_type?: string;
+        duration_min: number;
+        intensity?: "low" | "moderate" | "high";
+        exercises: ExerciseItem[];
+      };
+
+      const durationMin = Math.max(15, Math.min(180, parsed.duration_min || 45));
+      const workoutType = parsed.workout_type || "strength";
+      const intensity = parsed.intensity || "moderate";
+
+      // Calculate calories scientifically via MET formula
+      const calEstimate = estimateWorkoutCalories({
+        workoutType,
+        durationMin,
+        intensity,
+      });
+
+      return {
+        success: true,
+        workout_name: parsed.workout_name || "Custom AI Workout",
+        total_estimated_kcal: calEstimate.calories,
+        duration_min: durationMin,
+        exercises: parsed.exercises || [],
+        calorie_source: calEstimate.source as "CALCULATED" | "ESTIMATED",
+      };
+    } catch (err) {
+      console.warn("[generateWorkoutAction] Gemini call failed; generating structured baseline:", err);
     }
+  }
 
-    const parsed = JSON.parse(rawText) as {
-      workout_name: string;
-      total_estimated_kcal: number;
-      duration_min: number;
-      exercises: ExerciseItem[];
-    };
+  // Deterministic synthesis when AI service is unconfigured
+  const cleanPrompt = userPrompt.toLowerCase();
+  const isCardio = cleanPrompt.includes("run") || cleanPrompt.includes("cardio") || cleanPrompt.includes("hiit");
+  const isYoga = cleanPrompt.includes("yoga") || cleanPrompt.includes("stretch") || cleanPrompt.includes("mobility");
+  const durationMin = 45;
+  const workoutType = isYoga ? "yoga" : isCardio ? "hiit" : "strength";
 
-    return {
-      success: true,
-      workout_name: parsed.workout_name || "Custom AI Workout",
-      total_estimated_kcal: Math.max(100, parsed.total_estimated_kcal || 380),
-      duration_min: Math.max(15, parsed.duration_min || 45),
-      exercises: parsed.exercises || [],
-    };
-  } catch (err) {
-    console.warn("[Gemini Server Action] Fallback triggered due to:", err);
+  const calEstimate = estimateWorkoutCalories({
+    workoutType,
+    durationMin,
+    intensity: "moderate",
+  });
 
-    // Fallback AI Engine generator if API Key is unconfigured or rate limited
-    const isUpper = userPrompt.toLowerCase().includes("upper") || userPrompt.toLowerCase().includes("chest");
-    const isLegs = userPrompt.toLowerCase().includes("leg") || userPrompt.toLowerCase().includes("lower");
+  return {
+    success: true,
+    workout_name: `${userPrompt.slice(0, 30)} Session`,
+    total_estimated_kcal: calEstimate.calories,
+    duration_min: durationMin,
+    exercises: [
+      { exercise_name: "Warm-up & Joint Mobility", sets: 1, reps: "5-10 min", notes: "Dynamic movement preparation" },
+      { exercise_name: "Primary Movement Circuit", sets: 4, reps: "10-12", notes: "Controlled cadence with proper form" },
+      { exercise_name: "Secondary Accessory Work", sets: 3, reps: "12-15", notes: "Focus on mind-muscle contraction" },
+      { exercise_name: "Core & Postural Cool-down", sets: 3, reps: "45 sec", notes: "Regulate heart rate and stretch" },
+    ],
+    calorie_source: "ESTIMATED",
+  };
+}
 
-    const fallbackExercises: ExerciseItem[] = isUpper
-      ? [
-          { exercise_name: "Incline Dumbbell Bench Press", sets: 4, reps: "8-10", notes: "Control 3-sec eccentric pause on lower." },
-          { exercise_name: "Weighted Pull-Ups", sets: 4, reps: "6-8", notes: "Full range of motion, chest to bar." },
-          { exercise_name: "Cable Chest Flyes", sets: 3, reps: "12-15", notes: "Squeeze pecs at peak contraction." },
-          { exercise_name: "Overhead Dumbbell Press", sets: 3, reps: "10-12", notes: "Keep core engaged, no arching back." },
-        ]
-      : isLegs
-      ? [
-          { exercise_name: "Barbell Back Squat", sets: 4, reps: "6-8", notes: "Depth below parallel. Explosive drive." },
-          { exercise_name: "Romanian Deadlift (RDL)", sets: 4, reps: "8-10", notes: "Hinge at hips, stretch hamstrings." },
-          { exercise_name: "Bulgarian Split Squat", sets: 3, reps: "10/leg", notes: "Upright torso for quad bias." },
-          { exercise_name: "Standing Calf Raises", sets: 4, reps: "15", notes: "2-sec pause at peak stretch." },
-        ]
+/**
+ * Server Action: Generates a complete structured multi-day workout program (Day 1 -> Day N).
+ * Validated server-side and returned for user confirmation.
+ */
+export async function generateWorkoutPlanAction(params: {
+  programName?: string;
+  goal: "fat_loss" | "muscle_gain" | "strength" | "endurance" | "mobility" | "general_fitness";
+  durationDays: number;
+  daysPerWeek?: number;
+  equipment?: string;
+  experienceLevel?: string;
+}): Promise<GeneratedWorkoutPlanResult> {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  const programName = params.programName || `${params.goal.replace("_", " ").toUpperCase()} Program`;
+  const daysCount = Math.max(3, Math.min(90, params.durationDays || 7));
+  const daysPerWeek = Math.max(3, Math.min(7, params.daysPerWeek || 5));
+
+  if (apiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const prompt = `You are a world-class strength and conditioning coach.
+Design a comprehensive training program.
+Program Details:
+- Name: "${programName}"
+- Goal: "${params.goal}"
+- Duration: ${daysCount} days total
+- Training frequency: ${daysPerWeek} training days per week (with designated active recovery or rest days)
+- Equipment: ${params.equipment || "Standard gym equipment"}
+- Experience level: ${params.experienceLevel || "Intermediate"}
+
+For each day (Day 1 through Day ${Math.min(daysCount, 7)}):
+- Specify dayNumber, title (e.g. "Day 1 — Upper Body Strength"), focus, isRestDay boolean.
+- For non-rest days, provide 4-6 exercises with name, type (strength, cardio, stretch, bodyweight), target sets, reps, durationMin, notes.
+- Rest / recovery days must have isRestDay = true.
+Return ONLY valid JSON matching the schema.`;
+
+      const response = await ai.models.generateContent({
+        model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              programName: { type: Type.STRING },
+              days: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    dayNumber: { type: Type.INTEGER },
+                    title: { type: Type.STRING },
+                    focus: { type: Type.STRING },
+                    isRestDay: { type: Type.BOOLEAN },
+                    notes: { type: Type.STRING },
+                    exercises: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          name: { type: Type.STRING },
+                          type: { type: Type.STRING, enum: ["strength", "cardio", "stretch", "bodyweight"] },
+                          sets: { type: Type.INTEGER },
+                          reps: { type: Type.STRING },
+                          durationMin: { type: Type.INTEGER },
+                          notes: { type: Type.STRING },
+                        },
+                        required: ["name", "type"],
+                      },
+                    },
+                  },
+                  required: ["dayNumber", "title", "focus", "isRestDay", "exercises"],
+                },
+              },
+            },
+            required: ["programName", "days"],
+          },
+        },
+      });
+
+      const rawText = response.text;
+      if (rawText) {
+        const parsed = JSON.parse(rawText) as {
+          programName: string;
+          days: GeneratedPlanDay[];
+        };
+
+        // If the generated template is 7 days but duration is longer (e.g. 30 days),
+        // replicate the microcycle across the full duration
+        const templateDays = parsed.days || [];
+        const fullDays: GeneratedPlanDay[] = [];
+
+        for (let i = 1; i <= daysCount; i++) {
+          const templateIndex = ((i - 1) % templateDays.length);
+          const tDay = templateDays[templateIndex];
+          if (tDay) {
+            fullDays.push({
+              ...tDay,
+              dayNumber: i,
+              title: `Day ${i} — ${tDay.focus || tDay.title}`,
+            });
+          }
+        }
+
+        return {
+          success: true,
+          programName: parsed.programName || programName,
+          goal: params.goal,
+          durationDays: daysCount,
+          days: fullDays.length > 0 ? fullDays : templateDays,
+        };
+      }
+    } catch (err) {
+      console.warn("[generateWorkoutPlanAction] Gemini call failed; synthesizing program template:", err);
+    }
+  }
+
+  // Deterministic template generator based on user goal & split
+  const generatedDays: GeneratedPlanDay[] = [];
+  const splitCycle = params.goal === "fat_loss"
+    ? [
+        { title: "HIIT & Full Body Circuit", focus: "hiit", isRest: false },
+        { title: "Lower Body Conditioning", focus: "lower", isRest: false },
+        { title: "Active Recovery & Mobility", focus: "recovery", isRest: true },
+        { title: "Upper Body & Core Burn", focus: "upper", isRest: false },
+        { title: "Metabolic Aerobic Conditioning", focus: "cardio", isRest: false },
+        { title: "Full Body Resistance", focus: "full_body", isRest: false },
+        { title: "Complete Rest & Restoration", focus: "rest", isRest: true },
+      ]
+    : [
+        { title: "Push (Chest, Shoulders, Triceps)", focus: "push", isRest: false },
+        { title: "Pull (Back, Biceps, Rear Delts)", focus: "pull", isRest: false },
+        { title: "Legs & Core Hypertrophy", focus: "legs", isRest: false },
+        { title: "Active Mobility & Recovery", focus: "recovery", isRest: true },
+        { title: "Upper Body Strength Focus", focus: "upper", isRest: false },
+        { title: "Lower Body Posterior Chain", focus: "lower", isRest: false },
+        { title: "Complete Rest & Sleep", focus: "rest", isRest: true },
+      ];
+
+  for (let i = 1; i <= daysCount; i++) {
+    const cycleDay = splitCycle[(i - 1) % splitCycle.length];
+    const exercises = cycleDay.isRest
+      ? [{ name: "Mobility & Gentle Stretching", type: "stretch" as const, sets: 1, reps: "15 min", notes: "Promote tissue blood flow" }]
       : [
-          { exercise_name: "Kettlebell Goblet Squat", sets: 4, reps: "12", notes: "Keep elbows inside knees." },
-          { exercise_name: "Push-Up to Renegade Row", sets: 3, reps: "10", notes: "Brace core to minimize hip sway." },
-          { exercise_name: "Dumbbell Thrusters", sets: 4, reps: "10-12", notes: "Fluid transition squat into overhead drive." },
-          { exercise_name: "Plank Hold", sets: 3, reps: "60 sec", notes: "Full body tension engagement." },
+          { name: "Primary Compound Lift", type: "strength" as const, sets: 4, reps: "8-10", notes: "Heavy working sets" },
+          { name: "Secondary Compound Movement", type: "strength" as const, sets: 3, reps: "10-12", notes: "Controlled tempo" },
+          { name: "Targeted Isolation Exercise", type: "strength" as const, sets: 3, reps: "12-15", notes: "Full range of motion" },
+          { name: "Core Stability Exercise", type: "bodyweight" as const, sets: 3, reps: "45 sec", notes: "Maintain tension" },
         ];
 
-    return {
-      success: true,
-      workout_name: `AI ${isUpper ? "Upper Body" : isLegs ? "Lower Body" : "Full Body"} Routine`,
-      total_estimated_kcal: isUpper ? 420 : isLegs ? 480 : 390,
-      duration_min: 45,
-      exercises: fallbackExercises,
-    };
+    generatedDays.push({
+      dayNumber: i,
+      title: `Day ${i} — ${cycleDay.title}`,
+      focus: cycleDay.focus,
+      isRestDay: cycleDay.isRest,
+      notes: cycleDay.isRest ? "Rest day for neuromuscular recovery" : "Focus on progressive overload",
+      exercises,
+    });
   }
+
+  return {
+    success: true,
+    programName,
+    goal: params.goal,
+    durationDays: daysCount,
+    days: generatedDays,
+  };
 }

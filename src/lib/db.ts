@@ -14,6 +14,10 @@ import type {
   HydrationLog,
   MealLog,
   AiUserProfile,
+  WorkoutProgram,
+  WorkoutDay,
+  WorkoutExercise,
+  WorkoutExerciseCompletion,
 } from "./database.types";
 
 export const PRIMARY_USER_EMAIL = "guhan24td0781@svcet.ac.in";
@@ -368,6 +372,286 @@ export async function logWorkout(
     console.warn("[DB] log workout saved to local storage:", err);
   }
   return newWorkout;
+}
+
+export async function updateWorkout(
+  id: string,
+  updates: Partial<Workout>
+): Promise<Workout | null> {
+  const userId = await getActiveUserId();
+  const existing = getLocal<Workout[]>("workouts", INITIAL_WORKOUTS);
+  const target = existing.find((w) => w.id === id);
+  if (!target) return null;
+
+  const updatedWorkout: Workout = { ...target, ...updates };
+  const updatedList = existing.map((w) => (w.id === id ? updatedWorkout : w));
+  setLocal("workouts", updatedList);
+
+  try {
+    await supabase.from("workouts").update(updates as unknown as never).eq("id", id).eq("user_id", userId);
+  } catch (err) {
+    console.warn("[DB] updateWorkout sync error:", err);
+  }
+  return updatedWorkout;
+}
+
+export async function deleteWorkout(id: string): Promise<boolean> {
+  const userId = await getActiveUserId();
+  const existing = getLocal<Workout[]>("workouts", INITIAL_WORKOUTS);
+  const updatedList = existing.filter((w) => w.id !== id);
+  setLocal("workouts", updatedList);
+
+  try {
+    await supabase.from("workouts").delete().eq("id", id).eq("user_id", userId);
+  } catch (err) {
+    console.warn("[DB] deleteWorkout sync error:", err);
+  }
+  return true;
+}
+
+// ─────────────────────────────────────────────────────────
+// WORKOUT PROGRAMS & DAILY PLANS (TODO ENGINE)
+// ─────────────────────────────────────────────────────────
+
+export const INITIAL_WORKOUT_PROGRAMS: WorkoutProgram[] = [];
+export const INITIAL_WORKOUT_COMPLETIONS: WorkoutExerciseCompletion[] = [];
+
+export async function getWorkoutPrograms(): Promise<WorkoutProgram[]> {
+  const userId = await getActiveUserId();
+  const programs = getLocal<WorkoutProgram[]>("workout_programs", INITIAL_WORKOUT_PROGRAMS);
+  return programs.filter((p) => !p.userId || p.userId === userId);
+}
+
+export async function getActiveWorkoutProgram(): Promise<WorkoutProgram | null> {
+  const programs = await getWorkoutPrograms();
+  return programs.find((p) => p.isActive) || programs[0] || null;
+}
+
+export async function saveWorkoutProgram(
+  programData: Omit<WorkoutProgram, "id" | "userId" | "createdAt" | "updatedAt" | "days"> & {
+    id?: string;
+    days: Array<Omit<WorkoutDay, "id" | "programId" | "exercises"> & { id?: string; exercises?: Array<Omit<WorkoutExercise, "id" | "workoutDayId"> & { id?: string }> }>;
+  }
+): Promise<WorkoutProgram> {
+  const userId = await getActiveUserId();
+  const progId = programData.id || `prog-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const now = new Date().toISOString();
+
+  const formattedDays: WorkoutDay[] = programData.days.map((d, dIdx) => {
+    const dayId = d.id || `day-${progId}-${d.dayNumber || dIdx + 1}`;
+    const formattedExercises: WorkoutExercise[] = (d.exercises || []).map((ex, exIdx) => ({
+      id: ex.id || `ex-${dayId}-${exIdx + 1}`,
+      workoutDayId: dayId,
+      name: ex.name,
+      type: ex.type || "strength",
+      sets: ex.sets ?? 3,
+      reps: ex.reps ?? "10-12",
+      durationMin: ex.durationMin,
+      distanceKm: ex.distanceKm,
+      restSeconds: ex.restSeconds,
+      orderIndex: ex.orderIndex ?? exIdx + 1,
+      notes: ex.notes,
+    }));
+
+    return {
+      id: dayId,
+      programId: progId,
+      dayNumber: d.dayNumber || dIdx + 1,
+      title: d.title,
+      focus: d.focus || "general",
+      isRestDay: !!d.isRestDay,
+      notes: d.notes,
+      exercises: formattedExercises,
+    };
+  });
+
+  const fullProgram: WorkoutProgram = {
+    id: progId,
+    userId,
+    name: programData.name,
+    goal: programData.goal,
+    durationDays: programData.durationDays,
+    startDate: programData.startDate || todayStr(),
+    isActive: programData.isActive !== false,
+    createdAt: now,
+    updatedAt: now,
+    days: formattedDays,
+  };
+
+  const existing = getLocal<WorkoutProgram[]>("workout_programs", INITIAL_WORKOUT_PROGRAMS);
+  const updatedList = existing.filter((p) => p.id !== progId);
+  const normalized = fullProgram.isActive
+    ? updatedList.map((p) => ({ ...p, isActive: false }))
+    : updatedList;
+
+  setLocal("workout_programs", [fullProgram, ...normalized]);
+
+  // Dispatch custom event for UI reactivity
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("lifesync-db-update"));
+  }
+
+  return fullProgram;
+}
+
+export async function deleteWorkoutProgram(programId: string): Promise<boolean> {
+  const existing = getLocal<WorkoutProgram[]>("workout_programs", INITIAL_WORKOUT_PROGRAMS);
+  const filtered = existing.filter((p) => p.id !== programId);
+  setLocal("workout_programs", filtered);
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("lifesync-db-update"));
+  }
+  return true;
+}
+
+/**
+ * Returns all workout completions for a specific local calendar date.
+ */
+export function getWorkoutCompletions(dateStr?: string): WorkoutExerciseCompletion[] {
+  const targetDate = dateStr || todayStr();
+  const list = getLocal<WorkoutExerciseCompletion[]>("workout_completions", INITIAL_WORKOUT_COMPLETIONS);
+  return list.filter((c) => c.completionDate === targetDate);
+}
+
+export function getAllWorkoutCompletions(): WorkoutExerciseCompletion[] {
+  return getLocal<WorkoutExerciseCompletion[]>("workout_completions", INITIAL_WORKOUT_COMPLETIONS);
+}
+
+/**
+ * Toggles an exercise completion for targetDate without mutating the exercise template.
+ */
+export async function toggleWorkoutExerciseCompletion(
+  exerciseId: string,
+  workoutDayId: string,
+  dateStr?: string
+): Promise<WorkoutExerciseCompletion> {
+  const targetDate = dateStr || todayStr();
+  const userId = await getActiveUserId();
+  const allCompletions = getAllWorkoutCompletions();
+
+  const existingIndex = allCompletions.findIndex(
+    (c) => c.exerciseId === exerciseId && c.completionDate === targetDate
+  );
+
+  let updatedRecord: WorkoutExerciseCompletion;
+
+  if (existingIndex >= 0) {
+    const existing = allCompletions[existingIndex];
+    updatedRecord = {
+      ...existing,
+      completed: !existing.completed,
+      completedAt: new Date().toISOString(),
+    };
+    allCompletions[existingIndex] = updatedRecord;
+  } else {
+    updatedRecord = {
+      id: `wc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      userId,
+      exerciseId,
+      workoutDayId,
+      completionDate: targetDate,
+      completed: true,
+      completedAt: new Date().toISOString(),
+    };
+    allCompletions.push(updatedRecord);
+  }
+
+  setLocal("workout_completions", allCompletions);
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("lifesync-db-update"));
+  }
+
+  return updatedRecord;
+}
+
+/**
+ * Calculates current active day number and workout day for a given calendar date.
+ * Strictly uses local calendar dates to avoid UTC offset boundary issues.
+ */
+export function calculateProgramActiveDay(
+  program: WorkoutProgram,
+  targetDateStr?: string
+): {
+  dayNumber: number;
+  workoutDay: WorkoutDay | null;
+  isRestDay: boolean;
+  isOutOfRange: boolean;
+} {
+  const today = targetDateStr || todayStr();
+  const startD = parseLocalDate(program.startDate);
+  const targetD = parseLocalDate(today);
+
+  // Difference in calendar days
+  const diffTime = targetD.getTime() - startD.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  let dayNumber = diffDays + 1;
+  let isOutOfRange = false;
+
+  if (dayNumber < 1) {
+    dayNumber = 1;
+    isOutOfRange = true;
+  } else if (dayNumber > program.durationDays) {
+    isOutOfRange = true;
+  }
+
+  const days = program.days || [];
+  let workoutDay = days.find((d) => d.dayNumber === dayNumber) || null;
+
+  // If repeating template:
+  if (!workoutDay && days.length > 0) {
+    const templateIndex = ((dayNumber - 1) % days.length);
+    workoutDay = days[templateIndex] || null;
+  }
+
+  return {
+    dayNumber,
+    workoutDay,
+    isRestDay: !!workoutDay?.isRestDay,
+    isOutOfRange,
+  };
+}
+
+/**
+ * Computes 52-Week Output Heatmap data from actual workout logs.
+ * Returns 112 cells (16 weeks x 7 days) mapped to activity tiers (0 to 3).
+ * ZERO fake or random data.
+ */
+export async function getWorkoutHeatmapData(weeks = 16): Promise<number[]> {
+  const totalDays = weeks * 7;
+  const workouts = await getRecentWorkouts(100);
+
+  const cells: number[] = [];
+  const today = new Date();
+
+  const dayTotals: Record<string, { count: number; calories: number; duration: number }> = {};
+  for (const w of workouts) {
+    const k = extractLocalDate(w.workout_date);
+    if (!dayTotals[k]) dayTotals[k] = { count: 0, calories: 0, duration: 0 };
+    dayTotals[k].count += 1;
+    dayTotals[k].calories += (Number(w.calories) || 0);
+    dayTotals[k].duration += (Number(w.duration_min) || 0);
+  }
+
+  for (let i = totalDays - 1; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+    const dateStr = getLocalDateString(d);
+    const dayStat = dayTotals[dateStr];
+
+    if (!dayStat || dayStat.count === 0) {
+      cells.push(0);
+    } else if (dayStat.calories >= 500 || dayStat.duration >= 60) {
+      cells.push(3); // Vigorous output
+    } else if (dayStat.calories >= 250 || dayStat.duration >= 30) {
+      cells.push(2); // Moderate output
+    } else {
+      cells.push(1); // Light output
+    }
+  }
+
+  return cells;
 }
 
 // ─────────────────────────────────────────────────────────

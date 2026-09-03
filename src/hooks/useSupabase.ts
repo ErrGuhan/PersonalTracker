@@ -45,8 +45,27 @@ import {
   DEMO_USER_ID,
   todayStr,
   type StudyStats,
+  getActiveWorkoutProgram,
+  saveWorkoutProgram,
+  deleteWorkoutProgram,
+  getWorkoutCompletions,
+  toggleWorkoutExerciseCompletion,
+  getWorkoutHeatmapData,
+  updateWorkout as updateWorkoutDb,
+  deleteWorkout as deleteWorkoutDb,
 } from "@/lib/db";
-import type { HealthMetric, Workout, Goal, SleepLog, Habit, HydrationLog, MealLog, AiUserProfile } from "@/lib/database.types";
+import type { 
+  HealthMetric, 
+  Workout, 
+  Goal, 
+  SleepLog, 
+  Habit, 
+  HydrationLog, 
+  MealLog, 
+  AiUserProfile,
+  WorkoutProgram,
+  WorkoutExerciseCompletion,
+} from "@/lib/database.types";
 
 // ─────────────────────────────────────────────────────────
 // Generic async hook factory with local broadcast listener
@@ -186,6 +205,103 @@ export function useLogWorkout() {
     []
   );
   return { logWorkout: save, saving };
+}
+
+export function useUpdateWorkout() {
+  const [saving, setSaving] = useState(false);
+  const update = useCallback(async (id: string, updates: Partial<Workout>) => {
+    setSaving(true);
+    const result = await updateWorkoutDb(id, updates);
+    setSaving(false);
+    return result;
+  }, []);
+
+  const remove = useCallback(async (id: string) => {
+    setSaving(true);
+    const result = await deleteWorkoutDb(id);
+    setSaving(false);
+    return result;
+  }, []);
+
+  return { updateWorkout: update, deleteWorkout: remove, saving };
+}
+
+export function useWorkoutProgram() {
+  const [program, setProgram] = useState<WorkoutProgram | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    try {
+      setLoading(true);
+      const active = await getActiveWorkoutProgram();
+      setProgram(active);
+    } catch (err) {
+      console.warn("[useWorkoutProgram] fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const handleUpdate = () => refresh();
+    if (typeof window !== "undefined") {
+      window.addEventListener("lifesync-db-update", handleUpdate);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("lifesync-db-update", handleUpdate);
+      }
+    };
+  }, [refresh]);
+
+  const save = async (data: Parameters<typeof saveWorkoutProgram>[0]) => {
+    const saved = await saveWorkoutProgram(data);
+    setProgram(saved);
+    return saved;
+  };
+
+  const remove = async (id: string) => {
+    await deleteWorkoutProgram(id);
+    setProgram(null);
+  };
+
+  return { program, loading, refetch: refresh, saveProgram: save, deleteProgram: remove };
+}
+
+export function useWorkoutCompletions(dateStr?: string) {
+  const [completions, setCompletions] = useState<WorkoutExerciseCompletion[]>(() =>
+    typeof window !== "undefined" ? getWorkoutCompletions(dateStr) : []
+  );
+
+  const refresh = useCallback(() => {
+    setCompletions(getWorkoutCompletions(dateStr));
+  }, [dateStr]);
+
+  useEffect(() => {
+    refresh();
+    const handleUpdate = () => refresh();
+    if (typeof window !== "undefined") {
+      window.addEventListener("lifesync-db-update", handleUpdate);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("lifesync-db-update", handleUpdate);
+      }
+    };
+  }, [refresh]);
+
+  const toggle = async (exerciseId: string, workoutDayId: string) => {
+    const updated = await toggleWorkoutExerciseCompletion(exerciseId, workoutDayId, dateStr);
+    refresh();
+    return updated;
+  };
+
+  return { completions, toggleCompletion: toggle, refetch: refresh };
+}
+
+export function useWorkoutHeatmap() {
+  return useAsync(getWorkoutHeatmapData);
 }
 
 // ─────────────────────────────────────────────────────────

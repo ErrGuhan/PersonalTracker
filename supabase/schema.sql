@@ -166,33 +166,103 @@ create table if not exists public.meals (
 create index if not exists idx_meals_user_date
   on public.meals (user_id, logged_at desc);
 
+-- ─── WORKOUT PROGRAMS & DAILY PLANS (TODO ENGINE) ────────────
+create table if not exists public.workout_programs (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null,
+  name          text not null,
+  goal          text not null default 'general_fitness',
+  duration_days int not null default 7,
+  start_date    date not null default current_date,
+  is_active     boolean not null default true,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+create index if not exists idx_workout_programs_user
+  on public.workout_programs (user_id, is_active);
+
+create table if not exists public.workout_days (
+  id          uuid primary key default gen_random_uuid(),
+  program_id  uuid not null references public.workout_programs(id) on delete cascade,
+  day_number  int not null,
+  title       text not null,
+  focus       text not null default 'general',
+  is_rest_day boolean not null default false,
+  notes       text
+);
+
+create index if not exists idx_workout_days_prog
+  on public.workout_days (program_id, day_number);
+
+create table if not exists public.workout_exercises (
+  id             uuid primary key default gen_random_uuid(),
+  workout_day_id uuid not null references public.workout_days(id) on delete cascade,
+  name           text not null,
+  type           text not null default 'strength',
+  sets           int,
+  reps           text,
+  duration_min   int,
+  distance_km    numeric(6,2),
+  rest_seconds   int,
+  order_index    int not null default 0,
+  notes          text
+);
+
+create index if not exists idx_workout_exercises_day
+  on public.workout_exercises (workout_day_id, order_index);
+
+create table if not exists public.workout_completions (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null,
+  exercise_id     uuid not null,
+  workout_day_id  uuid not null,
+  completion_date date not null default current_date,
+  completed       boolean not null default false,
+  completed_at    timestamptz not null default now()
+);
+
+create unique index if not exists idx_unique_workout_completion
+  on public.workout_completions (user_id, exercise_id, completion_date);
+
+create index if not exists idx_workout_completions_user_date
+  on public.workout_completions (user_id, completion_date);
+
 -- ─── ROW LEVEL SECURITY ──────────────────────────────────────
 -- Users can only see their own rows.
 -- (Enable RLS in the Supabase dashboard or via the commands below)
 
-alter table public.health_metrics enable row level security;
-alter table public.workouts        enable row level security;
-alter table public.study_sessions  enable row level security;
-alter table public.mood_logs       enable row level security;
-alter table public.sleep_logs      enable row level security;
-alter table public.goals           enable row level security;
-alter table public.habits          enable row level security;
-alter table public.habit_logs      enable row level security;
-alter table public.hydration_logs  enable row level security;
-alter table public.meals           enable row level security;
+alter table public.health_metrics      enable row level security;
+alter table public.workouts            enable row level security;
+alter table public.study_sessions      enable row level security;
+alter table public.mood_logs           enable row level security;
+alter table public.sleep_logs          enable row level security;
+alter table public.goals               enable row level security;
+alter table public.habits              enable row level security;
+alter table public.habit_logs          enable row level security;
+alter table public.hydration_logs      enable row level security;
+alter table public.meals               enable row level security;
+alter table public.workout_programs    enable row level security;
+alter table public.workout_days        enable row level security;
+alter table public.workout_exercises   enable row level security;
+alter table public.workout_completions enable row level security;
 
 -- Public (anon) read/write — DEMO ONLY.
 -- Replace with auth.uid() = user_id policies once auth is configured.
-create policy "anon full access health_metrics" on public.health_metrics for all using (true) with check (true);
-create policy "anon full access workouts"        on public.workouts        for all using (true) with check (true);
-create policy "anon full access study_sessions"  on public.study_sessions  for all using (true) with check (true);
-create policy "anon full access mood_logs"       on public.mood_logs       for all using (true) with check (true);
-create policy "anon full access sleep_logs"      on public.sleep_logs      for all using (true) with check (true);
-create policy "anon full access goals"           on public.goals           for all using (true) with check (true);
-create policy "anon full access habits"          on public.habits          for all using (true) with check (true);
-create policy "anon full access habit_logs"      on public.habit_logs      for all using (true) with check (true);
-create policy "anon full access hydration_logs"  on public.hydration_logs  for all using (true) with check (true);
-create policy "anon full access meals"           on public.meals           for all using (true) with check (true);
+create policy "anon full access health_metrics"      on public.health_metrics      for all using (true) with check (true);
+create policy "anon full access workouts"            on public.workouts            for all using (true) with check (true);
+create policy "anon full access study_sessions"      on public.study_sessions      for all using (true) with check (true);
+create policy "anon full access mood_logs"           on public.mood_logs           for all using (true) with check (true);
+create policy "anon full access sleep_logs"          on public.sleep_logs          for all using (true) with check (true);
+create policy "anon full access goals"               on public.goals               for all using (true) with check (true);
+create policy "anon full access habits"              on public.habits              for all using (true) with check (true);
+create policy "anon full access habit_logs"          on public.habit_logs          for all using (true) with check (true);
+create policy "anon full access hydration_logs"      on public.hydration_logs      for all using (true) with check (true);
+create policy "anon full access meals"               on public.meals               for all using (true) with check (true);
+create policy "anon full access workout_programs"    on public.workout_programs    for all using (true) with check (true);
+create policy "anon full access workout_days"        on public.workout_days        for all using (true) with check (true);
+create policy "anon full access workout_exercises"   on public.workout_exercises   for all using (true) with check (true);
+create policy "anon full access workout_completions" on public.workout_completions for all using (true) with check (true);
 
 -- ─── SEED DATA ───────────────────────────────────────────────
 -- Demo user UUID matches DEMO_USER_ID in src/lib/db.ts

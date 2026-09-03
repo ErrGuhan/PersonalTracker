@@ -35,6 +35,8 @@ export interface Database {
           type: string;
           duration_min: number;
           calories: number;
+          calorie_source?: "USER_PROVIDED" | "CALCULATED" | "ESTIMATED" | "IMPORTED";
+          intensity?: "low" | "moderate" | "high";
           avg_heart_rate: number | null;
           distance_km: number | null;
           notes: string | null;
@@ -162,6 +164,64 @@ export interface Database {
         Insert: Omit<Database["public"]["Tables"]["meals"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["meals"]["Insert"]>;
       };
+      workout_programs: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          goal: "fat_loss" | "muscle_gain" | "strength" | "endurance" | "mobility" | "general_fitness";
+          duration_days: number;
+          start_date: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["workout_programs"]["Row"], "id" | "created_at" | "updated_at">;
+        Update: Partial<Database["public"]["Tables"]["workout_programs"]["Insert"]>;
+      };
+      workout_days: {
+        Row: {
+          id: string;
+          program_id: string;
+          day_number: number;
+          title: string;
+          focus: string;
+          is_rest_day: boolean;
+          notes: string | null;
+        };
+        Insert: Omit<Database["public"]["Tables"]["workout_days"]["Row"], "id">;
+        Update: Partial<Database["public"]["Tables"]["workout_days"]["Insert"]>;
+      };
+      workout_exercises: {
+        Row: {
+          id: string;
+          workout_day_id: string;
+          name: string;
+          type: "strength" | "cardio" | "stretch" | "bodyweight";
+          sets: number | null;
+          reps: string | null;
+          duration_min: number | null;
+          distance_km: number | null;
+          rest_seconds: number | null;
+          order_index: number;
+          notes: string | null;
+        };
+        Insert: Omit<Database["public"]["Tables"]["workout_exercises"]["Row"], "id">;
+        Update: Partial<Database["public"]["Tables"]["workout_exercises"]["Insert"]>;
+      };
+      workout_completions: {
+        Row: {
+          id: string;
+          user_id: string;
+          exercise_id: string;
+          workout_day_id: string;
+          completion_date: string; // YYYY-MM-DD local calendar date
+          completed: boolean;
+          completed_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["workout_completions"]["Row"], "id">;
+        Update: Partial<Database["public"]["Tables"]["workout_completions"]["Insert"]>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -170,16 +230,20 @@ export interface Database {
 }
 
 // ─── Convenience row types ─────────────────────────────────
-export type HealthMetric     = Database["public"]["Tables"]["health_metrics"]["Row"];
-export type Workout          = Database["public"]["Tables"]["workouts"]["Row"];
-export type StudySession     = Database["public"]["Tables"]["study_sessions"]["Row"];
-export type MoodLog          = Database["public"]["Tables"]["mood_logs"]["Row"];
-export type SleepLog         = Database["public"]["Tables"]["sleep_logs"]["Row"];
-export type Goal             = Database["public"]["Tables"]["goals"]["Row"];
-export type HabitRow         = Database["public"]["Tables"]["habits"]["Row"];
-export type HabitLogRow      = Database["public"]["Tables"]["habit_logs"]["Row"];
-export type HydrationLogRow  = Database["public"]["Tables"]["hydration_logs"]["Row"];
-export type MealRow          = Database["public"]["Tables"]["meals"]["Row"];
+export type HealthMetric               = Database["public"]["Tables"]["health_metrics"]["Row"];
+export type Workout                    = Database["public"]["Tables"]["workouts"]["Row"];
+export type WorkoutProgramRow          = Database["public"]["Tables"]["workout_programs"]["Row"];
+export type WorkoutDayRow              = Database["public"]["Tables"]["workout_days"]["Row"];
+export type WorkoutExerciseRow         = Database["public"]["Tables"]["workout_exercises"]["Row"];
+export type WorkoutCompletionRow       = Database["public"]["Tables"]["workout_completions"]["Row"];
+export type StudySession               = Database["public"]["Tables"]["study_sessions"]["Row"];
+export type MoodLog                    = Database["public"]["Tables"]["mood_logs"]["Row"];
+export type SleepLog                   = Database["public"]["Tables"]["sleep_logs"]["Row"];
+export type Goal                       = Database["public"]["Tables"]["goals"]["Row"];
+export type HabitRow                   = Database["public"]["Tables"]["habits"]["Row"];
+export type HabitLogRow                = Database["public"]["Tables"]["habit_logs"]["Row"];
+export type HydrationLogRow            = Database["public"]["Tables"]["hydration_logs"]["Row"];
+export type MealRow                    = Database["public"]["Tables"]["meals"]["Row"];
 
 export type HabitLogStatus = "COMPLETED" | "FROZEN" | "MISSED";
 
@@ -247,4 +311,54 @@ export interface AiUserProfile {
   currentPriorities: string[];
   personalizationEnabled: boolean;
 }
+
+// ─── Workout Program / Daily Plan Domain Interfaces ────────
+export interface WorkoutExercise {
+  id: string;
+  workoutDayId: string;
+  name: string;
+  type: "strength" | "cardio" | "stretch" | "bodyweight";
+  sets?: number | null;
+  reps?: string | null;
+  durationMin?: number | null;
+  distanceKm?: number | null;
+  restSeconds?: number | null;
+  orderIndex: number;
+  notes?: string | null;
+}
+
+export interface WorkoutExerciseCompletion {
+  id: string;
+  userId: string;
+  exerciseId: string;
+  workoutDayId: string;
+  completionDate: string; // YYYY-MM-DD local calendar date
+  completed: boolean;
+  completedAt: string;
+}
+
+export interface WorkoutDay {
+  id: string;
+  programId: string;
+  dayNumber: number;
+  title: string;
+  focus: string;
+  isRestDay: boolean;
+  notes?: string | null;
+  exercises?: WorkoutExercise[];
+}
+
+export interface WorkoutProgram {
+  id: string;
+  userId: string;
+  name: string;
+  goal: "fat_loss" | "muscle_gain" | "strength" | "endurance" | "mobility" | "general_fitness";
+  durationDays: number;
+  startDate: string; // YYYY-MM-DD
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  days?: WorkoutDay[];
+}
+
 
