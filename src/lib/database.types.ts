@@ -109,6 +109,32 @@ export interface Database {
         Insert: Omit<Database["public"]["Tables"]["goals"]["Row"], "id" | "created_at" | "updated_at">;
         Update: Partial<Database["public"]["Tables"]["goals"]["Insert"]>;
       };
+      habits: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          category: string;
+          frequency: string;
+          target_count: number;
+          icon: string;
+          created_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["habits"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["habits"]["Insert"]>;
+      };
+      habit_logs: {
+        Row: {
+          id: string;
+          habit_id: string;
+          user_id: string;
+          log_date: string;
+          status: "COMPLETED" | "FROZEN" | "MISSED";
+          created_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["habit_logs"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["habit_logs"]["Insert"]>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -123,16 +149,32 @@ export type StudySession   = Database["public"]["Tables"]["study_sessions"]["Row
 export type MoodLog        = Database["public"]["Tables"]["mood_logs"]["Row"];
 export type SleepLog       = Database["public"]["Tables"]["sleep_logs"]["Row"];
 export type Goal           = Database["public"]["Tables"]["goals"]["Row"];
+export type HabitRow       = Database["public"]["Tables"]["habits"]["Row"];
+export type HabitLogRow    = Database["public"]["Tables"]["habit_logs"]["Row"];
+
+export type HabitLogStatus = "COMPLETED" | "FROZEN" | "MISSED";
+
+export interface HabitLog {
+  id: string;
+  habit_id: string;
+  user_id: string;
+  log_date: string; // YYYY-MM-DD local calendar date
+  status: HabitLogStatus;
+  created_at: string;
+}
 
 export interface Habit {
   id: string;
+  user_id?: string;
   title: string;
   category: "health" | "fitness" | "focus" | "mindset";
-  streak: number;
-  completedToday: boolean;
+  streak: number; // consecutive active streak (starts at 0 for new, earned on completion)
+  completedToday: boolean; // whether HabitLog exists for today with status === "COMPLETED"
+  todayStatus: HabitLogStatus | "INCOMPLETE"; // "COMPLETED" | "FROZEN" | "MISSED" | "INCOMPLETE"
   frequency: string;
   targetCount: number;
   icon: string;
+  created_at?: string;
 }
 
 export interface HydrationLog {

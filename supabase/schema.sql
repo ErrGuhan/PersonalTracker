@@ -108,6 +108,35 @@ create table if not exists public.goals (
 create index if not exists goals_user
   on public.goals (user_id, created_at desc);
 
+-- ─── HABITS ──────────────────────────────────────────────────
+create table if not exists public.habits (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null,
+  title           text not null,
+  category        text not null default 'health',
+  frequency       text not null default 'Daily',
+  target_count    int  not null default 1,
+  icon            text not null default 'check_circle',
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists habits_user
+  on public.habits (user_id, created_at desc);
+
+-- ─── HABIT LOGS ──────────────────────────────────────────────
+create table if not exists public.habit_logs (
+  id              uuid primary key default gen_random_uuid(),
+  habit_id        uuid not null references public.habits(id) on delete cascade,
+  user_id         uuid not null,
+  log_date        date not null default current_date,
+  status          text not null default 'COMPLETED' check (status in ('COMPLETED', 'FROZEN', 'MISSED')),
+  created_at      timestamptz not null default now(),
+  constraint uq_habit_date unique (habit_id, log_date)
+);
+
+create index if not exists habit_logs_user_date
+  on public.habit_logs (user_id, log_date desc);
+
 -- ─── ROW LEVEL SECURITY ──────────────────────────────────────
 -- Users can only see their own rows.
 -- (Enable RLS in the Supabase dashboard or via the commands below)
@@ -118,6 +147,8 @@ alter table public.study_sessions  enable row level security;
 alter table public.mood_logs       enable row level security;
 alter table public.sleep_logs      enable row level security;
 alter table public.goals           enable row level security;
+alter table public.habits          enable row level security;
+alter table public.habit_logs      enable row level security;
 
 -- Public (anon) read/write — DEMO ONLY.
 -- Replace with auth.uid() = user_id policies once auth is configured.
@@ -127,6 +158,8 @@ create policy "anon full access study_sessions"  on public.study_sessions  for a
 create policy "anon full access mood_logs"       on public.mood_logs       for all using (true) with check (true);
 create policy "anon full access sleep_logs"      on public.sleep_logs      for all using (true) with check (true);
 create policy "anon full access goals"           on public.goals           for all using (true) with check (true);
+create policy "anon full access habits"          on public.habits          for all using (true) with check (true);
+create policy "anon full access habit_logs"      on public.habit_logs      for all using (true) with check (true);
 
 -- ─── SEED DATA ───────────────────────────────────────────────
 -- Demo user UUID matches DEMO_USER_ID in src/lib/db.ts

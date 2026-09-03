@@ -8,6 +8,8 @@ import type {
   SleepLog,
   Goal,
   Habit,
+  HabitLog,
+  HabitLogStatus,
   HydrationLog,
   MealLog,
   AiUserProfile,
@@ -16,7 +18,29 @@ import type {
 export const PRIMARY_USER_EMAIL = "guhan24td0781@svcet.ac.in";
 export const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
 
-const todayStr = () => new Date().toISOString().split("T")[0];
+/**
+ * Canonical local calendar date string (YYYY-MM-DD).
+ * Uses local calendar values (getFullYear, getMonth + 1, getDate)
+ * to guarantee that frontend, server actions, and DB queries agree on today.
+ */
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function getRelativeLocalDateString(daysOffset: number, baseDate: Date = new Date()): string {
+  const d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + daysOffset);
+  return getLocalDateString(d);
+}
+
+export function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.split("-").map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+export const todayStr = () => getLocalDateString();
 
 export const INITIAL_AI_PROFILE: AiUserProfile = {
   goals: ["Improve sleep duration", "Sustain daily focus", "Moderate athletic conditioning"],
@@ -48,7 +72,8 @@ const INITIAL_MOOD_LOG: MoodLog = {
 };
 
 const INITIAL_GOALS: Goal[] = [];
-const INITIAL_HABITS: Habit[] = [];
+export const INITIAL_HABITS: Habit[] = [];
+export const INITIAL_HABIT_LOGS: HabitLog[] = [];
 
 const INITIAL_HYDRATION: HydrationLog = {
   amountMl: 0,
@@ -641,50 +666,369 @@ export async function createGoal(
 }
 
 // ─────────────────────────────────────────────────────────
-// HABITS, HYDRATION & NUTRITION ACCESS
+// HABITS, HABIT LOGS & STREAK INTELLIGENCE
 // ─────────────────────────────────────────────────────────
 
-export function getHabits(): Habit[] {
-  return getLocal("habits", INITIAL_HABITS);
-}
+/**
+ * Calculates current active streak and today's completion status for a habit
+ * based on immutable historical HabitLog records.
+ *
+ * Rules:
+ * 1. Brand new habit (0 logs) => streak = 0, completedToday = false, todayStatus = 'INCOMPLETE'.
+ * 2. Today is COMPLETED or FROZEN => anchor is today; count consecutive completed/frozen days backwards.
+ * 3. Today is NOT logged yet => check if yesterday was COMPLETED or FROZEN.
+ *    - If yesterday was completed/frozen, streak is preserved intact (e.g. 3-day streak remains 3),
+ *      completedToday = false, and the user must complete today's action.
+ *    - If yesterday was missed or empty => streak = 0, completedToday = false.
+ * 4. A single missed day cleanly resets streak to 0 (or 1 once today is completed).
+ * 5. Frozen/rest days maintain streak continuity without breaking.
+ */
+export function calculateHabitStreak(
+  logs: HabitLog[],
+  today: string = todayStr()
+): { streak: number; completedToday: boolean; todayStatus: HabitLogStatus | "INCOMPLETE" } {
+  if (!logs || logs.length === 0) {
+    return { streak: 0, completedToday: false, todayStatus: "INCOMPLETE" };
+  }
 
-export function toggleHabit(id: string): Habit[] {
-  const current = getHabits();
-  const updated = current.map((h) => {
-    if (h.id === id) {
-      const isDone = !h.completedToday;
-      return {
-        ...h,
-        completedToday: isDone,
-        streak: isDone ? h.streak + 1 : Math.max(0, h.streak - 1),
-      };
+  const statusByDate = new Map<string, HabitLogStatus>();
+  for (const log of logs) {
+    statusByDate.set(log.log_date, log.status);
+  }
+
+  const todayLog = statusByDate.get(today);
+  const completedToday = todayLog === "COMPLETED";
+  const todayStatus: HabitLogStatus | "INCOMPLETE" = todayLog ?? "INCOMPLETE";
+
+  // If today is explicitly marked MISSED, streak is broken
+  if (todayLog === "MISSED") {
+    return { streak: 0, completedToday: false, todayStatus: "MISSED" };
+  }
+
+  let anchorDate: Date;
+  if (todayLog === "COMPLETED" || todayLog === "FROZEN") {
+    anchorDate = parseLocalDate(today);
+  } else {
+    // Today not yet logged. Check yesterday to see if active streak carries over.
+    const yesterdayDate = parseLocalDate(today);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = getLocalDateString(yesterdayDate);
+    const yesterdayStatus = statusByDate.get(yesterdayStr);
+
+    if (yesterdayStatus === "COMPLETED" || yesterdayStatus === "FROZEN") {
+      anchorDate = yesterdayDate;
+    } else {
+      // Neither today nor yesterday has a completed/frozen log -> streak is 0
+      return { streak: 0, completedToday, todayStatus };
     }
-    return h;
-  });
-  return setLocal("habits", updated);
+  }
+
+  let streak = 0;
+  const cursor = new Date(anchorDate.getTime());
+
+  while (true) {
+    const dStr = getLocalDateString(cursor);
+    const status = statusByDate.get(dStr);
+
+    if (status === "COMPLETED" || status === "FROZEN") {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return { streak, completedToday, todayStatus };
 }
 
-export function addHabit(newHabit: Omit<Habit, "id" | "streak" | "completedToday">): Habit[] {
+/**
+ * Returns all habit logs (persisted permanently in user-scoped storage).
+ * Historical logs are NEVER deleted when a new day arrives.
+ */
+export function getHabitLogs(habitId?: string): HabitLog[] {
+  const allLogs = getLocal<HabitLog[]>("habit_logs", INITIAL_HABIT_LOGS);
+  if (habitId) {
+    return allLogs.filter((l) => l.habit_id === habitId);
+  }
+  return allLogs;
+}
+
+/**
+ * Loads all user habits, joining them with daily HabitLog records
+ * to deterministically compute streaks and today's status.
+ */
+export function getHabits(): Habit[] {
+  const rawHabits = getLocal<Habit[]>("habits", INITIAL_HABITS);
+  const allLogs = getLocal<HabitLog[]>("habit_logs", INITIAL_HABIT_LOGS);
+  const today = todayStr();
+
+  return rawHabits.map((h) => {
+    const habitLogs = allLogs.filter((l) => l.habit_id === h.id);
+    const { streak, completedToday, todayStatus } = calculateHabitStreak(habitLogs, today);
+    return {
+      ...h,
+      streak,
+      completedToday,
+      todayStatus,
+    };
+  });
+}
+
+/**
+ * Toggles today's completion state for a habit.
+ * Idempotent: If completed, un-completes. If incomplete, completes.
+ * Never deletes historical logs from previous days.
+ */
+export function toggleHabit(id: string, dateStr?: string): Habit[] {
+  const targetDate = dateStr || todayStr();
+  const allLogs = getLocal<HabitLog[]>("habit_logs", INITIAL_HABIT_LOGS);
+  const existingLogIndex = allLogs.findIndex(
+    (l) => l.habit_id === id && l.log_date === targetDate
+  );
+
+  let updatedLogs: HabitLog[];
+  if (existingLogIndex >= 0) {
+    // Un-complete: remove today's log
+    updatedLogs = allLogs.filter((_, i) => i !== existingLogIndex);
+  } else {
+    // Complete: append new habit log
+    const userId = getScopedUserId();
+    const newLog: HabitLog = {
+      id: `hl-${id}-${targetDate}-${Date.now()}`,
+      habit_id: id,
+      user_id: userId,
+      log_date: targetDate,
+      status: "COMPLETED",
+      created_at: new Date().toISOString(),
+    };
+    updatedLogs = [...allLogs, newLog];
+  }
+
+  setLocal("habit_logs", updatedLogs);
+
+  // Background sync with Supabase
+  syncHabitLogToSupabase(id, targetDate, existingLogIndex < 0);
+
+  return getHabits();
+}
+
+/**
+ * Sets explicit status for a habit on a given date (COMPLETED, FROZEN, MISSED).
+ */
+export function setHabitStatus(
+  id: string,
+  status: HabitLogStatus,
+  dateStr?: string
+): Habit[] {
+  const targetDate = dateStr || todayStr();
+  const allLogs = getLocal<HabitLog[]>("habit_logs", INITIAL_HABIT_LOGS);
+  const existingLogIndex = allLogs.findIndex(
+    (l) => l.habit_id === id && l.log_date === targetDate
+  );
+
+  let updatedLogs: HabitLog[];
+  const userId = getScopedUserId();
+  const log: HabitLog = {
+    id: `hl-${id}-${targetDate}-${Date.now()}`,
+    habit_id: id,
+    user_id: userId,
+    log_date: targetDate,
+    status,
+    created_at: new Date().toISOString(),
+  };
+
+  if (existingLogIndex >= 0) {
+    updatedLogs = allLogs.map((l, i) => (i === existingLogIndex ? log : l));
+  } else {
+    updatedLogs = [...allLogs, log];
+  }
+
+  setLocal("habit_logs", updatedLogs);
+  syncHabitLogToSupabase(id, targetDate, true, status);
+  return getHabits();
+}
+
+/**
+ * Adds a new habit definition.
+ * CRITICAL: Streak is ALWAYS initialized to 0. A streak of 1 must be earned.
+ */
+export function addHabit(
+  newHabit: Omit<Habit, "id" | "streak" | "completedToday" | "todayStatus">
+): Habit[] {
+  const userId = getScopedUserId();
   const habit: Habit = {
     ...newHabit,
     id: `h-local-${Date.now()}`,
-    streak: 1,
+    user_id: userId,
+    streak: 0, // CRITICAL: NEVER DEFAULT TO 1. Streak starts at 0.
     completedToday: false,
+    todayStatus: "INCOMPLETE",
+    created_at: new Date().toISOString(),
   };
-  const current = getHabits();
-  return setLocal("habits", [...current, habit]);
+
+  const current = getLocal<Habit[]>("habits", INITIAL_HABITS);
+  setLocal("habits", [...current, habit]);
+
+  // Background sync habit definition to Supabase
+  syncNewHabitToSupabase(habit);
+
+  return getHabits();
 }
 
 export function updateHabit(id: string, updatedFields: Partial<Habit>): Habit[] {
-  const current = getHabits();
+  const current = getLocal<Habit[]>("habits", INITIAL_HABITS);
   const updated = current.map((h) => (h.id === id ? { ...h, ...updatedFields } : h));
-  return setLocal("habits", updated);
+  setLocal("habits", updated);
+
+  syncHabitUpdateToSupabase(id, updatedFields);
+  return getHabits();
 }
 
 export function deleteHabit(id: string): Habit[] {
-  const current = getHabits();
+  const current = getLocal<Habit[]>("habits", INITIAL_HABITS);
   const updated = current.filter((h) => h.id !== id);
-  return setLocal("habits", updated);
+  setLocal("habits", updated);
+
+  // Also remove associated habit logs (cascade)
+  const allLogs = getLocal<HabitLog[]>("habit_logs", INITIAL_HABIT_LOGS);
+  const updatedLogs = allLogs.filter((l) => l.habit_id !== id);
+  setLocal("habit_logs", updatedLogs);
+
+  syncHabitDeleteToSupabase(id);
+  return getHabits();
+}
+
+async function syncHabitUpdateToSupabase(id: string, updatedFields: Partial<Habit>) {
+  try {
+    const userId = await getActiveUserId();
+    await supabase
+      .from("habits")
+      .update({
+        title: updatedFields.title,
+        category: updatedFields.category,
+        frequency: updatedFields.frequency,
+      } as unknown as never)
+      .eq("id", id)
+      .eq("user_id", userId);
+  } catch (err) {
+    console.warn("[DB] Supabase habit update sync:", err);
+  }
+}
+
+async function syncHabitDeleteToSupabase(id: string) {
+  try {
+    const userId = await getActiveUserId();
+    await supabase
+      .from("habits")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+  } catch (err) {
+    console.warn("[DB] Supabase habit delete sync:", err);
+  }
+}
+
+/**
+ * Background helper to sync habit log changes to Supabase.
+ */
+async function syncHabitLogToSupabase(
+  habitId: string,
+  logDate: string,
+  isCompleted: boolean,
+  status: HabitLogStatus = "COMPLETED"
+) {
+  try {
+    const userId = await getActiveUserId();
+    if (isCompleted) {
+      await supabase
+        .from("habit_logs")
+        .upsert(
+          {
+            habit_id: habitId,
+            user_id: userId,
+            log_date: logDate,
+            status,
+          } as unknown as never,
+          { onConflict: "habit_id,log_date" }
+        );
+    } else {
+      await supabase
+        .from("habit_logs")
+        .delete()
+        .eq("habit_id", habitId)
+        .eq("log_date", logDate)
+        .eq("user_id", userId);
+    }
+  } catch (err) {
+    console.warn("[DB] Supabase habit log sync failed:", err);
+  }
+}
+
+/**
+ * Background helper to sync a new habit definition to Supabase.
+ */
+async function syncNewHabitToSupabase(habit: Habit) {
+  try {
+    const userId = await getActiveUserId();
+    await supabase.from("habits").insert({
+      id: habit.id.startsWith("h-local-") ? undefined : habit.id,
+      user_id: userId,
+      title: habit.title,
+      category: habit.category,
+      frequency: habit.frequency || "Daily",
+      target_count: habit.targetCount || 1,
+      icon: habit.icon || "check_circle",
+    } as unknown as never);
+  } catch (err) {
+    console.warn("[DB] Supabase habit insert sync:", err);
+  }
+}
+
+/**
+ * Asynchronously fetches habits and habit logs from Supabase
+ * and caches them into session-scoped local storage.
+ */
+export async function fetchHabitsWithLogsAsync(): Promise<Habit[]> {
+  try {
+    const userId = await getActiveUserId();
+    const [habitsRes, logsRes] = await Promise.all([
+      supabase.from("habits").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
+      supabase.from("habit_logs").select("*").eq("user_id", userId).order("log_date", { ascending: false }),
+    ]);
+
+    if (!habitsRes.error && habitsRes.data && habitsRes.data.length > 0) {
+      const remoteHabits: Habit[] = habitsRes.data.map((h: any) => ({
+        id: h.id,
+        user_id: h.user_id,
+        title: h.title,
+        category: h.category,
+        frequency: h.frequency || "Daily",
+        targetCount: h.target_count || 1,
+        icon: h.icon || "check_circle",
+        streak: 0,
+        completedToday: false,
+        todayStatus: "INCOMPLETE",
+        created_at: h.created_at,
+      }));
+      setLocal("habits", remoteHabits);
+    }
+
+    if (!logsRes.error && logsRes.data) {
+      const remoteLogs: HabitLog[] = logsRes.data.map((l: any) => ({
+        id: l.id,
+        habit_id: l.habit_id,
+        user_id: l.user_id,
+        log_date: l.log_date,
+        status: l.status as HabitLogStatus,
+        created_at: l.created_at,
+      }));
+      setLocal("habit_logs", remoteLogs);
+    }
+  } catch (err) {
+    console.warn("[DB] fetchHabitsWithLogsAsync error, using local data:", err);
+  }
+
+  return getHabits();
 }
 
 export function getHydration(): HydrationLog {
@@ -750,6 +1094,7 @@ export function exportAllDataJSON(): string {
     sleepLog: getLocal("sleep_log", null),
     goals: getLocal("goals", INITIAL_GOALS),
     habits: getLocal("habits", INITIAL_HABITS),
+    habitLogs: getLocal("habit_logs", INITIAL_HABIT_LOGS),
     hydration: getLocal("hydration", INITIAL_HYDRATION),
     meals: getLocal("meals", INITIAL_MEALS),
     aiProfile: getLocal("ai_profile", INITIAL_AI_PROFILE),

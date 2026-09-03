@@ -12,6 +12,14 @@ export default function HabitTrackerWidget() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [pendingHabitId, setPendingHabitId] = useState<string | null>(null);
+
+  const handleToggle = (id: string) => {
+    if (pendingHabitId === id) return;
+    setPendingHabitId(id);
+    toggleHabit(id);
+    setTimeout(() => setPendingHabitId(null), 300);
+  };
 
   // Delete Confirmation Modal State
   const [habitToDeleteId, setHabitToDeleteId] = useState<string | null>(null);
@@ -216,7 +224,7 @@ export default function HabitTrackerWidget() {
               >
                 <div
                   className="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer"
-                  onClick={() => toggleHabit(habit.id)}
+                  onClick={() => handleToggle(habit.id)}
                 >
                   {/* Checkbox circle filled with glowing cyan accent on completion */}
                   <div
@@ -229,7 +237,7 @@ export default function HabitTrackerWidget() {
                     <Check className="w-3.5 h-3.5 stroke-[3]" />
                   </div>
 
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p
                       className={`text-xs sm:text-sm font-bold transition-all ${
                         habit.completedToday ? "line-through text-slate-500" : "text-white"
@@ -237,63 +245,99 @@ export default function HabitTrackerWidget() {
                     >
                       {habit.title}
                     </p>
-                    <div className="flex items-center gap-2 text-[10px] font-mono mt-0.5">
+                    <div className="flex items-center gap-2 text-[10px] font-mono mt-0.5 flex-wrap">
                       <span className="uppercase tracking-widest text-cyan-400 font-semibold">{habit.category}</span>
                       <span className="text-slate-600">·</span>
                       <span className="flex items-center gap-1 text-slate-400">
                         <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
                         {habit.streak} day streak
                       </span>
+                      <span className="text-slate-600">·</span>
+                      <span>
+                        {habit.completedToday ? (
+                          <span className="text-emerald-400 font-semibold">✓ Completed today</span>
+                        ) : habit.todayStatus === "FROZEN" ? (
+                          <span className="text-blue-400 font-semibold">❄️ Rest day</span>
+                        ) : (
+                          <span className="text-slate-500">Incomplete</span>
+                        )}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Progressive Disclosure Action Menu (Vertical Ellipsis) */}
-                <div className="relative shrink-0 ml-2">
+                {/* Explicit Action Button: [ Completed ] vs [ Complete ] */}
+                <div className="flex items-center gap-2 shrink-0 ml-2">
                   <button
+                    type="button"
+                    disabled={pendingHabitId === habit.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setMenuOpenId((prev) => (prev === habit.id ? null : habit.id));
+                      handleToggle(habit.id);
                     }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                    aria-label="Actions"
+                    className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      habit.completedToday
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+                        : "bg-white/5 hover:bg-cyan-500/15 text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/30"
+                    }`}
                   >
-                    <MoreVertical className="w-4 h-4" />
+                    {habit.completedToday ? (
+                      <>
+                        <Check className="w-3 h-3 stroke-[3]" />
+                        Completed
+                      </>
+                    ) : (
+                      "Complete"
+                    )}
                   </button>
 
-                  <AnimatePresence>
-                    {menuOpenId === habit.id && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 top-8 z-30 w-32 bg-slate-900/95 backdrop-blur-xl border border-white/15 p-1 rounded-xl shadow-2xl"
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenEdit(habit);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/10 rounded-lg transition"
+                  {/* Progressive Disclosure Action Menu (Vertical Ellipsis) */}
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpenId((prev) => (prev === habit.id ? null : habit.id));
+                      }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                      aria-label="Actions"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+
+                    <AnimatePresence>
+                      {menuOpenId === habit.id && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-8 z-30 w-32 bg-slate-900/95 backdrop-blur-xl border border-white/15 p-1 rounded-xl shadow-2xl"
                         >
-                          <Pencil className="w-3.5 h-3.5 text-cyan-400" />
-                          Edit
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMenuOpenId(null);
-                            setHabitToDeleteId(habit.id);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                          Delete
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEdit(habit);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/10 rounded-lg transition"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-cyan-400" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuOpenId(null);
+                              setHabitToDeleteId(habit.id);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                            Delete
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </motion.li>
             ))}

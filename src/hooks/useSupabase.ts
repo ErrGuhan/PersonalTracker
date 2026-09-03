@@ -24,9 +24,11 @@ import {
   logStudySession,
   getHabits,
   toggleHabit as toggleHabitDb,
+  setHabitStatus as setHabitStatusDb,
   addHabit as addHabitDb,
   updateHabit as updateHabitDb,
   deleteHabit as deleteHabitDb,
+  fetchHabitsWithLogsAsync,
   getHydration,
   addWater as addWaterDb,
   getMeals,
@@ -380,29 +382,75 @@ export function useCreateGoal() {
 // ─────────────────────────────────────────────────────────
 export function useHabits() {
   const [habits, setHabits] = useState<Habit[]>(() => (typeof window !== "undefined" ? getHabits() : []));
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     setHabits(getHabits());
   }, []);
 
   useEffect(() => {
+    // Initial remote background sync with Supabase tables
+    let isMounted = true;
+    setLoading(true);
+    fetchHabitsWithLogsAsync()
+      .then((data) => {
+        if (isMounted) {
+          setHabits(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.warn("[useHabits] Remote sync error, keeping local habits:", err);
+        if (isMounted) setLoading(false);
+      });
+
     const handleUpdate = () => refresh();
     if (typeof window !== "undefined") {
       window.addEventListener("lifesync-db-update", handleUpdate);
     }
     return () => {
+      isMounted = false;
       if (typeof window !== "undefined") {
         window.removeEventListener("lifesync-db-update", handleUpdate);
       }
     };
   }, [refresh]);
 
-  const toggle = (id: string) => {
-    const updated = toggleHabitDb(id);
-    setHabits(updated);
+  const toggle = (id: string, dateStr?: string) => {
+    const previous = [...habits];
+    try {
+      setError(null);
+      const updated = toggleHabitDb(id, dateStr);
+      setHabits(updated);
+    } catch (err: any) {
+      console.error("[useHabits] Toggle failed, rolling back:", err);
+      setHabits(previous);
+      setError("Couldn't save your progress. Please retry.");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("lifesync-toast", {
+            detail: { message: "Couldn't save your progress. Please retry.", type: "error" },
+          })
+        );
+      }
+    }
   };
 
-  const add = (newHabit: Omit<Habit, "id" | "streak" | "completedToday">) => {
+  const setStatus = (id: string, status: "COMPLETED" | "FROZEN" | "MISSED", dateStr?: string) => {
+    const previous = [...habits];
+    try {
+      setError(null);
+      const updated = setHabitStatusDb(id, status, dateStr);
+      setHabits(updated);
+    } catch (err: any) {
+      console.error("[useHabits] SetStatus failed, rolling back:", err);
+      setHabits(previous);
+      setError("Couldn't save your progress. Please retry.");
+    }
+  };
+
+  const add = (newHabit: Omit<Habit, "id" | "streak" | "completedToday" | "todayStatus">) => {
     const updated = addHabitDb(newHabit);
     setHabits(updated);
   };
@@ -417,7 +465,17 @@ export function useHabits() {
     setHabits(updated);
   };
 
-  return { habits, toggleHabit: toggle, addHabit: add, updateHabit: update, deleteHabit: remove, refetch: refresh };
+  return {
+    habits,
+    loading,
+    error,
+    toggleHabit: toggle,
+    setHabitStatus: setStatus,
+    addHabit: add,
+    updateHabit: update,
+    deleteHabit: remove,
+    refetch: refresh,
+  };
 }
 
 export function useHydration() {
