@@ -89,12 +89,12 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 0 8px 30px 0 rgba(0, 0, 0, 0.12);
   will-change: transform, opacity;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+  /* Optimized: only animate transform — not box-shadow (GPU-friendly) */
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
 }
 
 .glass-panel:hover {
   border-color: rgba(76, 215, 246, 0.2);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.25);
 }
 
 .glass-panel-glow {
@@ -127,78 +127,66 @@ html, body {
 .heat-level-3 { background-color: rgba(236, 106, 6, 0.75); border: 1px solid rgba(236, 106, 6, 0.9); box-shadow: 0 0 12px rgba(236, 106, 6, 0.5); }
 .heat-level-4 { background-color: #ffb690; border: 1px solid #ffffff; box-shadow: 0 0 15px rgba(255, 182, 144, 0.8); }
 
-/* Keyframe Animations */
-@keyframes breathing-cyan {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.05); }
-}
+/* ─────────────────────────────────────────────────────────────────────────────
+   OPTIMIZED ANIMATION SYSTEM
+   Principle: Animate user attention, not the entire interface.
+   GPU-safe: Only transform + opacity. No filter, box-shadow, or width/height.
+   ───────────────────────────────────────────────────────────────────────────── */
 
-@keyframes breathing-orange {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.05); }
-}
+/* Removed: breathing-cyan / breathing-orange (continuous scale+opacity on large blur divs)  */
+/* Removed: pulse-ring (continuous box-shadow animation)                                       */
+/* Removed: flow-gradient / flow-gradient-orange / flow-gradient-violet (hue-rotate filter)   */
+/* These were the primary GPU bottlenecks — replaced with static glows below.                 */
 
-@keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(76, 215, 246, 0.4); }
-  70% { box-shadow: 0 0 0 20px rgba(76, 215, 246, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(76, 215, 246, 0); }
-}
-
-@keyframes flow-gradient {
-  0% { stroke: #4cd7f6; filter: hue-rotate(0deg); }
-  50% { stroke: #06b6d4; filter: hue-rotate(15deg); }
-  100% { stroke: #4cd7f6; filter: hue-rotate(0deg); }
-}
-
-@keyframes flow-gradient-orange {
-  0% { stroke: #ec6a06; filter: hue-rotate(0deg); }
-  50% { stroke: #ffb690; filter: hue-rotate(-10deg); }
-  100% { stroke: #ec6a06; filter: hue-rotate(0deg); }
-}
-
-@keyframes flow-gradient-violet {
-  0% { stroke: #b395ff; filter: hue-rotate(0deg); }
-  50% { stroke: #d0bcff; filter: hue-rotate(10deg); }
-  100% { stroke: #b395ff; filter: hue-rotate(0deg); }
-}
-
+/* Static ambient glow elements — GPU-free, no animation needed */
 .glow-cyan-active {
-  animation: breathing-cyan 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  will-change: opacity, transform;
+  opacity: 0.6;
+  will-change: auto;
 }
 
 .glow-orange-active {
-  animation: breathing-orange 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  will-change: opacity, transform;
+  opacity: 0.6;
+  will-change: auto;
 }
 
+/* Static center badge — no animated box-shadow */
 .pulse-center {
-  animation: pulse-ring 2.5s infinite;
+  box-shadow: 0 0 0 1px rgba(76, 215, 246, 0.2), inset 0 0 20px rgba(76, 215, 246, 0.08);
 }
 
+/* SVG ring arcs — static colored strokes; data drives strokeDashoffset via CSS transition */
 .circular-progress {
   transform: rotate(-90deg);
   transform-origin: 50% 50%;
   will-change: transform;
 }
 
-.living-ring-cyan { animation: flow-gradient 4s ease-in-out infinite; }
-.living-ring-orange { animation: flow-gradient-orange 4s ease-in-out infinite; }
-.living-ring-violet { animation: flow-gradient-violet 4s ease-in-out infinite; }
+/* Data-driven ring transitions — only update when underlying data value changes */
+.living-ring-cyan {
+  stroke: #4cd7f6;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.living-ring-orange {
+  stroke: #ec6a06;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.living-ring-violet {
+  stroke: #b395ff;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
+/* Tactile button press — pure CSS, no JS required */
 .tactile-click {
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
 }
 .tactile-click:active {
   transform: scale(0.96);
 }
 
+/* Deprecated: tilt-card (3D perspective hover) — replaced with flat CSS hover */
 .tilt-card {
-  transform-style: preserve-3d;
-  transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
-  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-  will-change: transform;
+  transition: transform 0.15s ease-out;
 }
 
 /* Globally hide scrollbars to preserve weightless glassmorphism UI */
@@ -211,11 +199,80 @@ html, body {
   scrollbar-width: none;
 }
 
+/* Page entrance — fast, subtle, GPU-only (opacity + translateY) */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(3px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Modal entrance — bottom-sheet on mobile, fade+slide on desktop */
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes modalSlideUpMobile {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.modal-enter {
+  animation: modalSlideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (max-width: 639px) {
+  .modal-enter {
+    animation: modalSlideUpMobile 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+/* Swipe drag visual feedback — controlled via CSS custom property, no React state */
+.swipe-container {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.swipe-container.is-dragging {
+  transition: none; /* Raw follow during drag */
+}
+
+/* Shimmer skeleton — single CSS animation, no Framer Motion overhead */
+@keyframes shimmer {
+  0%   { opacity: 0.4; }
+  50%  { opacity: 0.75; }
+  100% { opacity: 0.4; }
+}
+
+.skeleton-shimmer {
+  animation: shimmer 1.4s ease-in-out infinite;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+}
+
+/* Prefers Reduced Motion — respect user accessibility settings */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-fadeIn,
+  .modal-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .living-ring-cyan,
+  .living-ring-orange,
+  .living-ring-violet {
+    transition: none;
+  }
 }

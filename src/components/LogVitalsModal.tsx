@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { useLogVitals } from "@/hooks/useSupabase";
 
 interface LogVitalsModalProps {
@@ -32,27 +31,17 @@ export default function LogVitalsModal({ onClose, onSaved }: LogVitalsModalProps
       recovery_score: Number(form.recovery_score),
     });
     setSaved(true);
-    setTimeout(() => {
-      onSaved();
-      onClose();
-    }, 600);
+    onSaved();
+    onClose();
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/65 p-0 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="w-full max-w-md max-h-[85vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] rounded-2xl bg-gradient-to-b from-surface-container-high/90 to-surface-dim/95 border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl text-on-surface space-y-5"
+      <div
+        className="modal-enter w-full max-w-md max-h-[88vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] rounded-t-2xl sm:rounded-2xl bg-gradient-to-b from-surface-container-high/90 to-surface-dim/95 border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl text-on-surface space-y-5"
       >
         <div className="flex items-center justify-between">
           <div>
@@ -173,7 +162,7 @@ export default function LogVitalsModal({ onClose, onSaved }: LogVitalsModalProps
             {saved ? "✓ Biometrics Saved!" : saving ? "Saving…" : "Save Vital Signs"}
           </button>
         </form>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import type { HeroHealthIntelligence } from "@/lib/ai/types";
 
 interface AiHeroCardProps {
@@ -32,11 +31,8 @@ export default function AiHeroCard({
   const trend = heroData?.trendIndicator ?? "unknown";
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-      className="glass-panel rounded-2xl sm:rounded-3xl p-5 sm:p-7 relative overflow-hidden border border-white/10 shadow-2xl bg-gradient-to-br from-surface-container/90 via-surface-container-low/80 to-surface-dim/95"
+    <section
+      className="animate-fadeIn glass-panel rounded-2xl sm:rounded-3xl p-5 sm:p-7 relative overflow-hidden border border-white/10 shadow-2xl bg-gradient-to-br from-surface-container/90 via-surface-container-low/80 to-surface-dim/95"
     >
       {/* Ambient Glows */}
       <div className="absolute -top-20 -right-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -45,7 +41,7 @@ export default function AiHeroCard({
       {/* Header Tagline */}
       <div className="flex items-center justify-between gap-3 mb-5 relative z-10 flex-wrap">
         <div className="flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_10px_#4cd7f6] animate-pulse" />
+          <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_8px_#4cd7f6] opacity-80" />
           <span className="font-mono text-[11px] sm:text-xs text-primary font-bold tracking-widest uppercase">
             HEALTH STATUS OVERVIEW
           </span>
@@ -207,6 +203,6 @@ export default function AiHeroCard({
           </button>
         )}
       </div>
-    </motion.section>
+    </section>
   );
 }

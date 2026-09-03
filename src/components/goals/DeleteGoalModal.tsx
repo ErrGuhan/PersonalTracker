@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import type { Goal } from "@/lib/database.types";
 
 interface DeleteGoalModalProps {
@@ -36,20 +35,12 @@ export default function DeleteGoalModal({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.18 }}
-      className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
+    <div
+      className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-black/65 p-0 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 20, scale: 0.96 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl bg-gradient-to-b from-[#181C24] to-[#0F131C] border border-red-500/20 backdrop-blur-2xl p-6 shadow-2xl text-[#DFE2EE] space-y-5"
+      <div
+        className="modal-enter w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl bg-gradient-to-b from-[#181C24] to-[#0F131C] border border-red-500/20 backdrop-blur-2xl p-6 shadow-2xl text-[#DFE2EE] space-y-5"
       >
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 text-2xl shrink-0">
@@ -87,7 +78,7 @@ export default function DeleteGoalModal({
             {deleting ? "Deleting…" : "Delete Goal"}
           </button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

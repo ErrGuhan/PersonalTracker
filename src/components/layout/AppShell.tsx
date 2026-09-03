@@ -3,7 +3,6 @@
 import { useRef, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import { ModalProvider, useModals } from "@/context/ModalContext";
 import { useAuthContext } from "@/context/AuthProvider";
@@ -24,7 +23,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
       {/* ─── Desktop Navigation Drawer (LG+) ─── */}
       <nav
         aria-label="Desktop Navigation"
-        className="hidden lg:flex flex-col fixed left-0 top-0 h-full z-[60] bg-[#0F131C]/95 backdrop-blur-2xl w-72 rounded-r-2xl border-r border-white/10 shadow-2xl"
+        className="hidden lg:flex flex-col fixed left-0 top-0 h-full z-[60] bg-[#0F131C]/95 backdrop-blur-xl w-72 rounded-r-2xl border-r border-white/10 shadow-2xl"
       >
         <div className="p-6 border-b border-white/5">
           <div className="flex items-center gap-4 mb-6">
@@ -107,7 +106,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
       {/* ─── Main Viewport ─── */}
       <main
         ref={mainRef}
-        className="flex-1 w-full overflow-y-auto overflow-x-hidden scroll-smooth pb-32 lg:pb-16 touch-pan-y relative pt-24 sm:pt-28 px-4 sm:px-8 lg:px-12 max-w-[1440px] lg:ml-72"
+        className="swipe-container flex-1 w-full overflow-y-auto overflow-x-hidden scroll-smooth pb-32 lg:pb-16 touch-pan-y relative pt-24 sm:pt-28 px-4 sm:px-8 lg:px-12 max-w-[1440px] lg:ml-72"
       >
         <div key={pathname} className="w-full animate-fadeIn">
           {children}
@@ -117,7 +116,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
       {/* ─── Sleek Floating Bottom Navigation Bar (Mobile & Tablet < LG) ─── */}
       <nav
         aria-label="Mobile Navigation"
-        className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 w-[94%] max-w-lg rounded-full bg-[#0F131C]/95 backdrop-blur-2xl border border-white/15 shadow-[0_12px_40px_rgba(0,0,0,0.7)] z-50 flex items-center justify-around px-2 py-1.5 overflow-x-auto no-scrollbar"
+        className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 w-[94%] max-w-lg rounded-full bg-[#0F131C]/95 backdrop-blur-xl border border-white/15 shadow-[0_12px_40px_rgba(0,0,0,0.7)] z-50 flex items-center justify-around px-2 py-1.5 overflow-x-auto no-scrollbar"
       >
         {NAV_ITEMS.map((item) => {
           const active = isRouteActive(pathname, item.href);

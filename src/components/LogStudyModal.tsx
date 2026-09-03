@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { useLogStudySession } from "@/hooks/useSupabase";
 
 interface LogStudyModalProps {
@@ -40,30 +39,20 @@ export default function LogStudyModal({ onClose, onSaved }: LogStudyModalProps) 
       await logSession(subject.trim(), durationMin, focusScore);
       router.refresh();
       setSaved(true);
-      setTimeout(() => {
-        onSaved();
-        onClose();
-      }, 600);
+      onSaved();
+      onClose();
     } catch (err) {
       console.error("[Supabase logSession Error]:", err);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/65 p-0 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        className="w-full max-w-md max-h-[85vh] flex flex-col rounded-2xl bg-gradient-to-b from-surface-container-high/95 to-surface-dim/98 border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-on-surface overflow-hidden relative"
+      <div
+        className="modal-enter w-full max-w-md max-h-[88vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-gradient-to-b from-surface-container-high/95 to-surface-dim/98 border border-white/15 backdrop-blur-2xl p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-on-surface overflow-hidden relative"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-4 shrink-0">
@@ -182,7 +171,7 @@ export default function LogStudyModal({ onClose, onSaved }: LogStudyModalProps) 
             </button>
           </form>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
