@@ -10,6 +10,7 @@ import type {
   Habit,
   HabitLog,
   HabitLogStatus,
+  HydrationEntry,
   HydrationLog,
   MealLog,
   AiUserProfile,
@@ -38,6 +39,18 @@ export function getRelativeLocalDateString(daysOffset: number, baseDate: Date = 
 export function parseLocalDate(dateStr: string): Date {
   const parts = dateStr.split("-").map(Number);
   return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+export function extractLocalDate(dateOrIsoStr: string): string {
+  if (!dateOrIsoStr) return "";
+  if (dateOrIsoStr.length === 10 && !dateOrIsoStr.includes("T")) {
+    return dateOrIsoStr;
+  }
+  const d = new Date(dateOrIsoStr);
+  if (isNaN(d.getTime())) {
+    return dateOrIsoStr.slice(0, 10);
+  }
+  return getLocalDateString(d);
 }
 
 export const todayStr = () => getLocalDateString();
@@ -75,13 +88,16 @@ const INITIAL_GOALS: Goal[] = [];
 export const INITIAL_HABITS: Habit[] = [];
 export const INITIAL_HABIT_LOGS: HabitLog[] = [];
 
-const INITIAL_HYDRATION: HydrationLog = {
+export const INITIAL_HYDRATION_ENTRIES: HydrationEntry[] = [];
+export const DEFAULT_HYDRATION_TARGET_ML = 2500;
+
+export const INITIAL_HYDRATION: HydrationLog = {
   amountMl: 0,
-  targetMl: 2500,
-  lastUpdated: new Date().toISOString(),
+  targetMl: DEFAULT_HYDRATION_TARGET_ML,
+  lastUpdated: null,
 };
 
-const INITIAL_MEALS: MealLog[] = [];
+export const INITIAL_MEALS: MealLog[] = [];
 
 function notifyUpdate() {
   if (typeof window !== "undefined") {
@@ -1031,53 +1047,271 @@ export async function fetchHabitsWithLogsAsync(): Promise<Habit[]> {
   return getHabits();
 }
 
-export function getHydration(): HydrationLog {
-  return getLocal("hydration", INITIAL_HYDRATION);
+// ─────────────────────────────────────────────────────────
+// HYDRATION & NUTRITION (FUEL ENGINE)
+// ─────────────────────────────────────────────────────────
+
+export function getHydrationTarget(): number {
+  return getLocal<number>("hydration_target", DEFAULT_HYDRATION_TARGET_ML);
 }
 
-export function addWater(amountMl: number): HydrationLog {
-  const current = getHydration();
-  const updated: HydrationLog = {
-    ...current,
-    amountMl: current.amountMl + amountMl,
-    lastUpdated: new Date().toISOString(),
-  };
-  setLocal("hydration", updated);
+export function setHydrationTarget(targetMl: number): number {
+  return setLocal("hydration_target", Math.max(500, targetMl));
+}
 
-  const pct = Math.min(100, Math.round((updated.amountMl / updated.targetMl) * 100));
+/**
+ * Returns all permanent, historical hydration entries ever logged.
+ */
+export function getHydrationEntries(): HydrationEntry[] {
+  return getLocal<HydrationEntry[]>("hydration_entries", INITIAL_HYDRATION_ENTRIES);
+}
+
+/**
+ * Calculates today's consumed hydration total strictly from today's entries.
+ * Returns { amountMl: 0 } if no entries exist for today.
+ */
+export function getTodayHydration(targetDate?: string): HydrationLog {
+  const date = targetDate || todayStr();
+  const allEntries = getHydrationEntries();
+
+  const todayEntries = allEntries.filter((e) => {
+    if (!e.logged_at) return false;
+    return extractLocalDate(e.logged_at) === date;
+  });
+
+  const amountMl = todayEntries.reduce((sum, e) => sum + (Number(e.amount_ml) || 0), 0);
+  const lastUpdated = todayEntries.length > 0 ? todayEntries[todayEntries.length - 1].logged_at : null;
+
+  return {
+    amountMl,
+    targetMl: getHydrationTarget(),
+    lastUpdated,
+  };
+}
+
+/**
+ * Backwards-compatible getter for today's hydration summary.
+ */
+export function getHydration(): HydrationLog {
+  return getTodayHydration();
+}
+
+/**
+ * Logs a new discrete hydration entry with timestamp and persists it permanently.
+ */
+export function addWater(amountMl: number, dateStr?: string): HydrationLog {
+  const targetDate = dateStr || todayStr();
+  const newEntry: HydrationEntry = {
+    id: `hyd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    amount_ml: Math.max(1, Math.round(amountMl)),
+    logged_at: dateStr ? `${dateStr}T12:00:00` : new Date().toISOString(),
+  };
+
+  const current = getHydrationEntries();
+  setLocal("hydration_entries", [...current, newEntry]);
+
+  // Sync to Supabase in background
+  syncHydrationEntryToSupabase(newEntry);
+
+  const todayHydration = getTodayHydration(targetDate);
+  const pct = Math.round((todayHydration.amountMl / todayHydration.targetMl) * 100);
   const currentMetrics = getLocal<HealthMetric | null>("health_metrics", null);
   if (currentMetrics) {
-    const tempUpdated = { ...currentMetrics, hydration_pct: pct };
+    const tempUpdated = { ...currentMetrics, hydration_pct: Math.min(100, pct) };
     setLocal("health_metrics", tempUpdated);
   }
 
-  return updated;
+  return todayHydration;
 }
 
+/**
+ * Returns all permanent, historical meals ever logged.
+ */
+export function getAllMeals(): MealLog[] {
+  return getLocal<MealLog[]>("meals", INITIAL_MEALS);
+}
+
+/**
+ * Returns meals logged strictly on targetDate (defaults to today).
+ */
+export function getTodayMeals(targetDate?: string): MealLog[] {
+  const date = targetDate || todayStr();
+  const allMeals = getAllMeals();
+
+  return allMeals.filter((m) => {
+    if (!m.loggedAt) return false;
+    return extractLocalDate(m.loggedAt) === date;
+  });
+}
+
+/**
+ * Backwards-compatible getter for today's meals.
+ */
 export function getMeals(): MealLog[] {
-  return getLocal("meals", INITIAL_MEALS);
+  return getTodayMeals();
 }
 
-export function logMeal(meal: Omit<MealLog, "id" | "loggedAt">): MealLog[] {
+/**
+ * Computes deterministic macronutrient and calorie totals strictly from today's meals.
+ */
+export function getTodayNutritionStats(targetDate?: string) {
+  const todayMeals = getTodayMeals(targetDate);
+  return {
+    totalCalories: todayMeals.reduce((s, m) => s + (Number(m.calories) || 0), 0),
+    totalProtein: todayMeals.reduce((s, m) => s + (Number(m.proteinG) || 0), 0),
+    totalCarbs: todayMeals.reduce((s, m) => s + (Number(m.carbsG) || 0), 0),
+    totalFats: todayMeals.reduce((s, m) => s + (Number(m.fatsG) || 0), 0),
+  };
+}
+
+/**
+ * Logs a new discrete meal with timestamp and persists it permanently in history.
+ */
+export function logMeal(meal: Omit<MealLog, "id" | "loggedAt">, dateStr?: string): MealLog[] {
+  const targetDate = dateStr || todayStr();
   const newMeal: MealLog = {
     ...meal,
-    id: `m-local-${Date.now()}`,
-    loggedAt: new Date().toISOString(),
+    id: `m-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    loggedAt: dateStr ? `${dateStr}T12:00:00.000Z` : new Date().toISOString(),
   };
-  const current = getMeals();
-  return setLocal("meals", [newMeal, ...current]);
+
+  const current = getAllMeals();
+  setLocal("meals", [newMeal, ...current]);
+
+  syncMealToSupabase(newMeal);
+  return getTodayMeals(targetDate);
 }
 
 export function updateMeal(id: string, updatedFields: Partial<MealLog>): MealLog[] {
-  const current = getMeals();
+  const current = getAllMeals();
   const updated = current.map((m) => (m.id === id ? { ...m, ...updatedFields } : m));
-  return setLocal("meals", updated);
+  setLocal("meals", updated);
+
+  syncMealUpdateToSupabase(id, updatedFields);
+  return getTodayMeals();
 }
 
 export function deleteMeal(id: string): MealLog[] {
-  const current = getMeals();
+  const current = getAllMeals();
   const updated = current.filter((m) => m.id !== id);
-  return setLocal("meals", updated);
+  setLocal("meals", updated);
+
+  syncMealDeleteToSupabase(id);
+  return getTodayMeals();
+}
+
+// ─── Fuel Background Supabase Sync Helpers ───────────────────
+
+async function syncHydrationEntryToSupabase(entry: HydrationEntry) {
+  try {
+    const userId = await getActiveUserId();
+    await supabase.from("hydration_logs").insert({
+      user_id: userId,
+      amount_ml: entry.amount_ml,
+      logged_at: entry.logged_at,
+    } as unknown as never);
+  } catch (err) {
+    console.warn("[DB] Supabase hydration insert sync:", err);
+  }
+}
+
+async function syncMealToSupabase(meal: MealLog) {
+  try {
+    const userId = await getActiveUserId();
+    await supabase.from("meals").insert({
+      user_id: userId,
+      name: meal.name,
+      meal_type: meal.mealType,
+      calories: meal.calories,
+      protein_g: meal.proteinG,
+      carbs_g: meal.carbsG,
+      fats_g: meal.fatsG,
+      logged_at: meal.loggedAt,
+    } as unknown as never);
+  } catch (err) {
+    console.warn("[DB] Supabase meal insert sync:", err);
+  }
+}
+
+async function syncMealUpdateToSupabase(id: string, updatedFields: Partial<MealLog>) {
+  try {
+    const userId = await getActiveUserId();
+    await supabase
+      .from("meals")
+      .update({
+        name: updatedFields.name,
+        meal_type: updatedFields.mealType,
+        calories: updatedFields.calories,
+        protein_g: updatedFields.proteinG,
+        carbs_g: updatedFields.carbsG,
+        fats_g: updatedFields.fatsG,
+      } as unknown as never)
+      .eq("id", id)
+      .eq("user_id", userId);
+  } catch (err) {
+    console.warn("[DB] Supabase meal update sync:", err);
+  }
+}
+
+async function syncMealDeleteToSupabase(id: string) {
+  try {
+    const userId = await getActiveUserId();
+    await supabase
+      .from("meals")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+  } catch (err) {
+    console.warn("[DB] Supabase meal delete sync:", err);
+  }
+}
+
+/**
+ * Asynchronously pulls hydration entries and meals from Supabase
+ * and caches them into session-scoped local storage.
+ */
+export async function fetchFuelDataAsync(): Promise<{ hydration: HydrationLog; meals: MealLog[] }> {
+  try {
+    const userId = await getActiveUserId();
+    const [hydRes, mealsRes] = await Promise.all([
+      supabase.from("hydration_logs").select("*").eq("user_id", userId).order("logged_at", { ascending: true }),
+      supabase.from("meals").select("*").eq("user_id", userId).order("logged_at", { ascending: false }),
+    ]);
+
+    if (!hydRes.error && hydRes.data && hydRes.data.length > 0) {
+      const remoteHydration: HydrationEntry[] = hydRes.data.map((h: any) => ({
+        id: h.id,
+        user_id: h.user_id,
+        amount_ml: h.amount_ml,
+        logged_at: h.logged_at,
+        created_at: h.created_at,
+      }));
+      setLocal("hydration_entries", remoteHydration);
+    }
+
+    if (!mealsRes.error && mealsRes.data && mealsRes.data.length > 0) {
+      const remoteMeals: MealLog[] = mealsRes.data.map((m: any) => ({
+        id: m.id,
+        user_id: m.user_id,
+        name: m.name,
+        mealType: m.meal_type as any,
+        calories: m.calories,
+        proteinG: m.protein_g,
+        carbsG: m.carbs_g,
+        fatsG: m.fats_g,
+        loggedAt: m.logged_at,
+        created_at: m.created_at,
+      }));
+      setLocal("meals", remoteMeals);
+    }
+  } catch (err) {
+    console.warn("[DB] fetchFuelDataAsync error, using local data:", err);
+  }
+
+  return {
+    hydration: getTodayHydration(),
+    meals: getTodayMeals(),
+  };
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1096,6 +1330,7 @@ export function exportAllDataJSON(): string {
     habits: getLocal("habits", INITIAL_HABITS),
     habitLogs: getLocal("habit_logs", INITIAL_HABIT_LOGS),
     hydration: getLocal("hydration", INITIAL_HYDRATION),
+    hydrationEntries: getLocal("hydration_entries", INITIAL_HYDRATION_ENTRIES),
     meals: getLocal("meals", INITIAL_MEALS),
     aiProfile: getLocal("ai_profile", INITIAL_AI_PROFILE),
   };

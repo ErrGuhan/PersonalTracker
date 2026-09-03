@@ -135,6 +135,33 @@ export interface Database {
         Insert: Omit<Database["public"]["Tables"]["habit_logs"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["habit_logs"]["Insert"]>;
       };
+      hydration_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          amount_ml: number;
+          logged_at: string;
+          created_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["hydration_logs"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["hydration_logs"]["Insert"]>;
+      };
+      meals: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          meal_type: "breakfast" | "lunch" | "dinner" | "snack";
+          calories: number;
+          protein_g: number;
+          carbs_g: number;
+          fats_g: number;
+          logged_at: string;
+          created_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["meals"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["meals"]["Insert"]>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -143,14 +170,16 @@ export interface Database {
 }
 
 // ─── Convenience row types ─────────────────────────────────
-export type HealthMetric   = Database["public"]["Tables"]["health_metrics"]["Row"];
-export type Workout        = Database["public"]["Tables"]["workouts"]["Row"];
-export type StudySession   = Database["public"]["Tables"]["study_sessions"]["Row"];
-export type MoodLog        = Database["public"]["Tables"]["mood_logs"]["Row"];
-export type SleepLog       = Database["public"]["Tables"]["sleep_logs"]["Row"];
-export type Goal           = Database["public"]["Tables"]["goals"]["Row"];
-export type HabitRow       = Database["public"]["Tables"]["habits"]["Row"];
-export type HabitLogRow    = Database["public"]["Tables"]["habit_logs"]["Row"];
+export type HealthMetric     = Database["public"]["Tables"]["health_metrics"]["Row"];
+export type Workout          = Database["public"]["Tables"]["workouts"]["Row"];
+export type StudySession     = Database["public"]["Tables"]["study_sessions"]["Row"];
+export type MoodLog          = Database["public"]["Tables"]["mood_logs"]["Row"];
+export type SleepLog         = Database["public"]["Tables"]["sleep_logs"]["Row"];
+export type Goal             = Database["public"]["Tables"]["goals"]["Row"];
+export type HabitRow         = Database["public"]["Tables"]["habits"]["Row"];
+export type HabitLogRow      = Database["public"]["Tables"]["habit_logs"]["Row"];
+export type HydrationLogRow  = Database["public"]["Tables"]["hydration_logs"]["Row"];
+export type MealRow          = Database["public"]["Tables"]["meals"]["Row"];
 
 export type HabitLogStatus = "COMPLETED" | "FROZEN" | "MISSED";
 
@@ -177,21 +206,31 @@ export interface Habit {
   created_at?: string;
 }
 
+export interface HydrationEntry {
+  id: string;
+  user_id?: string;
+  amount_ml: number;
+  logged_at: string; // ISO timestamp
+  created_at?: string;
+}
+
 export interface HydrationLog {
   amountMl: number;
   targetMl: number;
-  lastUpdated: string;
+  lastUpdated: string | null;
 }
 
 export interface MealLog {
   id: string;
+  user_id?: string;
   name: string;
   mealType: "breakfast" | "lunch" | "dinner" | "snack";
   calories: number;
   proteinG: number;
   carbsG: number;
   fatsG: number;
-  loggedAt: string;
+  loggedAt: string; // ISO timestamp
+  created_at?: string;
 }
 
 export interface AiUserProfile {

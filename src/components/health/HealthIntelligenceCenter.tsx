@@ -19,6 +19,8 @@ import {
   useStudyStats,
   useHabits,
   useAiProfile,
+  useHydration,
+  useNutrition,
 } from "@/hooks/useSupabase";
 
 import {
@@ -91,6 +93,8 @@ export default function HealthIntelligenceCenter({
   const { data: studyStats } = useStudyStats();
   const { habits, addHabit } = useHabits();
   const { profile } = useAiProfile();
+  const { hydration } = useHydration();
+  const { meals } = useNutrition();
 
   // ─── Deterministic Computations (Immediate & 100% Reliable) ───
   const recoveryIntel = useMemo(() => {
@@ -122,9 +126,11 @@ export default function HealthIntelligenceCenter({
       workouts,
       [],
       habits,
-      profile
+      profile,
+      hydration,
+      meals
     );
-  }, [metrics, latestSleep, healthHistory, sleepHistory, workouts, habits, profile]);
+  }, [metrics, latestSleep, healthHistory, sleepHistory, workouts, habits, profile, hydration, meals]);
 
   // ─── AI States & Progressive Loading ─────────────────────────
   const [heroData, setHeroData] = useState<HeroHealthIntelligence | null>(null);

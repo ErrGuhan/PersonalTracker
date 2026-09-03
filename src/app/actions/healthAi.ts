@@ -582,6 +582,50 @@ export async function askHealthAssistantAction(
       };
     }
 
+    if (lower.includes("water") || lower.includes("hydration") || lower.includes("drink") || lower.includes("fluid")) {
+      const hyd = bundle.todaySummary.hydrationMl;
+      const target = bundle.todaySummary.hydrationTargetMl || 2500;
+      const pct = bundle.todaySummary.hydrationPct || (hyd ? Math.round((hyd / target) * 100) : 0);
+
+      if (hyd === null || hyd === 0) {
+        return {
+          content: `You haven't logged any water today yet (daily target: ${target}ml). Starting your morning with a 250ml or 500ml glass of water activates metabolic processes and boosts cognitive alertness.`,
+          actionChips: ["Log 250ml water", "Why am I tired?", "Today's capacity"],
+        };
+      } else if (hyd >= target) {
+        return {
+          content: `You've logged ${hyd}ml of fluid today, reaching ${pct}% of your ${target}ml daily goal! Excellent hydration supports optimal blood volume, HRV recovery, and sustained focus.`,
+          actionChips: ["Should I train today?", "How was my recovery?", "Build My Day"],
+        };
+      } else {
+        const remaining = target - hyd;
+        return {
+          content: `You're currently at ${hyd}ml / ${target}ml (${pct}% of your daily target). You have approximately ${remaining}ml remaining to reach optimal hydration today.`,
+          actionChips: ["Log +250ml water", "Log +500ml water", "Today's capacity"],
+        };
+      }
+    }
+
+    if (lower.includes("calorie") || lower.includes("nutrition") || lower.includes("meal") || lower.includes("food") || lower.includes("protein") || lower.includes("carb") || lower.includes("fuel")) {
+      const cal = bundle.todaySummary.caloriesConsumed;
+      const protein = bundle.todaySummary.proteinG;
+      const carbs = bundle.todaySummary.carbsG;
+      const fats = bundle.todaySummary.fatsG;
+      const mealsCount = bundle.todaySummary.mealsCount;
+
+      if (cal === null || mealsCount === 0) {
+        return {
+          content: "You haven't logged any meals today yet. Fueling your body with balanced calories and protein supports physiological recovery and mental clarity.",
+          actionChips: ["Log First Meal", "Hydration status", "Build My Day"],
+        };
+      } else {
+        return {
+          content: `Today you have logged ${mealsCount} meal${mealsCount > 1 ? "s" : ""} totaling ${cal} kcal (Protein: ${protein || 0}g, Carbs: ${carbs || 0}g, Fats: ${fats || 0}g). This provides energy to support your daily cognitive and physical demands.`,
+          actionChips: ["Log Next Meal", "Hydration status", "Today's capacity"],
+        };
+      }
+    }
+
     if (lower.includes("adjust") || lower.includes("schedule") || lower.includes("day")) {
       if (rec === null) {
         return {
@@ -615,6 +659,12 @@ export async function askHealthAssistantAction(
   }
   if (bundle.todaySummary.hrvMs !== null) {
     evidence.push(`HRV: ${bundle.todaySummary.hrvMs}ms`);
+  }
+  if (bundle.todaySummary.hydrationMl !== null) {
+    evidence.push(`Hydration: ${bundle.todaySummary.hydrationMl}ml / ${bundle.todaySummary.hydrationTargetMl || 2500}ml`);
+  }
+  if (bundle.todaySummary.caloriesConsumed !== null) {
+    evidence.push(`Nutrition: ${bundle.todaySummary.caloriesConsumed} kcal (${bundle.todaySummary.mealsCount} meals)`);
   }
 
   return {

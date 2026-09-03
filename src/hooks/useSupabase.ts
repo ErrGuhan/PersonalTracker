@@ -32,9 +32,12 @@ import {
   getHydration,
   addWater as addWaterDb,
   getMeals,
+  getTodayMeals,
+  getAllMeals,
   logMeal as logMealDb,
   updateMeal as updateMealDb,
   deleteMeal as deleteMealDb,
+  fetchFuelDataAsync,
   upsertHealthMetrics,
   getActiveUserId,
   DEMO_USER_ID,
@@ -480,19 +483,38 @@ export function useHabits() {
 
 export function useHydration() {
   const [hydration, setHydration] = useState<HydrationLog>(() =>
-    typeof window !== "undefined" ? getHydration() : { amountMl: 1750, targetMl: 2500, lastUpdated: "" }
+    typeof window !== "undefined"
+      ? getHydration()
+      : { amountMl: 0, targetMl: 2500, lastUpdated: null }
   );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     setHydration(getHydration());
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    fetchFuelDataAsync()
+      .then((data) => {
+        if (isMounted) {
+          setHydration(data.hydration);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.warn("[useHydration] Remote sync error:", err);
+        if (isMounted) setLoading(false);
+      });
+
     const handleUpdate = () => refresh();
     if (typeof window !== "undefined") {
       window.addEventListener("lifesync-db-update", handleUpdate);
     }
     return () => {
+      isMounted = false;
       if (typeof window !== "undefined") {
         window.removeEventListener("lifesync-db-update", handleUpdate);
       }
@@ -500,26 +522,58 @@ export function useHydration() {
   }, [refresh]);
 
   const addWater = (amountMl: number) => {
-    const updated = addWaterDb(amountMl);
-    setHydration(updated);
+    const previous = { ...hydration };
+    try {
+      setError(null);
+      const updated = addWaterDb(amountMl);
+      setHydration(updated);
+    } catch (err) {
+      console.error("[useHydration] addWater failed, rolling back:", err);
+      setHydration(previous);
+      setError("Failed to save hydration. Please retry.");
+    }
   };
 
-  return { hydration, addWater, refetch: refresh };
+  return { hydration, addWater, loading, error, refetch: refresh };
 }
 
 export function useNutrition() {
-  const [meals, setMeals] = useState<MealLog[]>(() => (typeof window !== "undefined" ? getMeals() : []));
+  const [meals, setMeals] = useState<MealLog[]>(() =>
+    typeof window !== "undefined" ? getTodayMeals() : []
+  );
+  const [allMeals, setAllMeals] = useState<MealLog[]>(() =>
+    typeof window !== "undefined" ? getAllMeals() : []
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
-    setMeals(getMeals());
+    setMeals(getTodayMeals());
+    setAllMeals(getAllMeals());
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    fetchFuelDataAsync()
+      .then((data) => {
+        if (isMounted) {
+          setMeals(data.meals);
+          setAllMeals(getAllMeals());
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.warn("[useNutrition] Remote sync error:", err);
+        if (isMounted) setLoading(false);
+      });
+
     const handleUpdate = () => refresh();
     if (typeof window !== "undefined") {
       window.addEventListener("lifesync-db-update", handleUpdate);
     }
     return () => {
+      isMounted = false;
       if (typeof window !== "undefined") {
         window.removeEventListener("lifesync-db-update", handleUpdate);
       }
@@ -527,27 +581,63 @@ export function useNutrition() {
   }, [refresh]);
 
   const logMeal = (meal: Omit<MealLog, "id" | "loggedAt">) => {
-    const updated = logMealDb(meal);
-    setMeals(updated);
+    const prevMeals = [...meals];
+    const prevAllMeals = [...allMeals];
+    try {
+      setError(null);
+      const updatedToday = logMealDb(meal);
+      setMeals(updatedToday);
+      setAllMeals(getAllMeals());
+    } catch (err) {
+      console.error("[useNutrition] logMeal failed, rolling back:", err);
+      setMeals(prevMeals);
+      setAllMeals(prevAllMeals);
+      setError("Failed to log meal. Please retry.");
+    }
   };
 
   const updateMeal = (id: string, updatedFields: Partial<MealLog>) => {
-    const updated = updateMealDb(id, updatedFields);
-    setMeals(updated);
+    const prevMeals = [...meals];
+    const prevAllMeals = [...allMeals];
+    try {
+      setError(null);
+      const updatedToday = updateMealDb(id, updatedFields);
+      setMeals(updatedToday);
+      setAllMeals(getAllMeals());
+    } catch (err) {
+      console.error("[useNutrition] updateMeal failed, rolling back:", err);
+      setMeals(prevMeals);
+      setAllMeals(prevAllMeals);
+      setError("Failed to update meal.");
+    }
   };
 
   const deleteMeal = (id: string) => {
-    const updated = deleteMealDb(id);
-    setMeals(updated);
+    const prevMeals = [...meals];
+    const prevAllMeals = [...allMeals];
+    try {
+      setError(null);
+      const updatedToday = deleteMealDb(id);
+      setMeals(updatedToday);
+      setAllMeals(getAllMeals());
+    } catch (err) {
+      console.error("[useNutrition] deleteMeal failed, rolling back:", err);
+      setMeals(prevMeals);
+      setAllMeals(prevAllMeals);
+      setError("Failed to delete meal.");
+    }
   };
 
-  const totalCalories = meals.reduce((s, m) => s + m.calories, 0);
-  const totalProtein = meals.reduce((s, m) => s + m.proteinG, 0);
-  const totalCarbs = meals.reduce((s, m) => s + m.carbsG, 0);
-  const totalFats = meals.reduce((s, m) => s + m.fatsG, 0);
+  const totalCalories = meals.reduce((s, m) => s + (Number(m.calories) || 0), 0);
+  const totalProtein = meals.reduce((s, m) => s + (Number(m.proteinG) || 0), 0);
+  const totalCarbs = meals.reduce((s, m) => s + (Number(m.carbsG) || 0), 0);
+  const totalFats = meals.reduce((s, m) => s + (Number(m.fatsG) || 0), 0);
 
   return {
     meals,
+    allMeals,
+    loading,
+    error,
     logMeal,
     updateMeal,
     deleteMeal,

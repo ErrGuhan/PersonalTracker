@@ -10,6 +10,8 @@ import type {
   Habit,
   StudySession,
   AiUserProfile,
+  HydrationLog,
+  MealLog,
 } from "@/lib/database.types";
 import {
   calculateDeterministicRecovery,
@@ -28,6 +30,13 @@ export interface HealthContextBundle {
     spo2: number | null;
     stressPct: number | null;
     hydrationPct: number | null;
+    hydrationMl: number | null;
+    hydrationTargetMl: number | null;
+    caloriesConsumed: number | null;
+    proteinG: number | null;
+    carbsG: number | null;
+    fatsG: number | null;
+    mealsCount: number;
     caloriesBurned: number | null;
     focusMinutes: number;
   };
@@ -49,9 +58,11 @@ export interface HealthContextBundle {
 }
 
 /**
- * Builds standard concise context for Health AI capabilities.
+ * Builds a deterministic summary bundle for AI consumption.
  */
-export function buildHealthContextBundle(
+export const buildHealthContextBundle = buildHealthAiContextBundle;
+
+export function buildHealthAiContextBundle(
   metrics: HealthMetric | null,
   latestSleep: SleepLog | null,
   healthHistory: HealthMetric[],
@@ -59,7 +70,9 @@ export function buildHealthContextBundle(
   workouts: Workout[],
   studySessions: StudySession[],
   habits: Habit[],
-  profile?: AiUserProfile
+  profile?: AiUserProfile,
+  hydration?: HydrationLog | null,
+  meals?: MealLog[]
 ): HealthContextBundle {
   const currentRecovery = calculateDeterministicRecovery(metrics, latestSleep);
   const { baselineScore, daysEvaluated } = calculateRecoveryBaseline(healthHistory);
@@ -109,6 +122,21 @@ export function buildHealthContextBundle(
   const trackedDaysCount = Math.max(daysEvaluated, recent7Sleep.length);
   const dataAvailability = evaluateDataAvailability(metrics, latestSleep, trackedDaysCount);
 
+  const hydrationMl = hydration && hydration.amountMl > 0 ? hydration.amountMl : null;
+  const hydrationTargetMl = hydration ? hydration.targetMl : 2500;
+  const hydrationPct =
+    hydration && hydration.targetMl > 0
+      ? Math.round((hydration.amountMl / hydration.targetMl) * 100)
+      : metrics?.hydration_pct != null && metrics.hydration_pct > 0
+      ? metrics.hydration_pct
+      : null;
+
+  const validMeals = meals || [];
+  const caloriesConsumed = validMeals.length > 0 ? validMeals.reduce((s, m) => s + (m.calories || 0), 0) : null;
+  const proteinG = validMeals.length > 0 ? validMeals.reduce((s, m) => s + (m.proteinG || 0), 0) : null;
+  const carbsG = validMeals.length > 0 ? validMeals.reduce((s, m) => s + (m.carbsG || 0), 0) : null;
+  const fatsG = validMeals.length > 0 ? validMeals.reduce((s, m) => s + (m.fatsG || 0), 0) : null;
+
   return {
     dataAvailability,
     todaySummary: {
@@ -118,7 +146,14 @@ export function buildHealthContextBundle(
       hrvMs: metrics?.hrv_ms != null && metrics.hrv_ms > 0 ? metrics.hrv_ms : null,
       spo2: metrics?.spo2 != null && Number(metrics.spo2) > 0 ? Number(metrics.spo2) : null,
       stressPct: metrics?.stress_pct != null && metrics.stress_pct > 0 ? metrics.stress_pct : null,
-      hydrationPct: metrics?.hydration_pct != null && metrics.hydration_pct > 0 ? metrics.hydration_pct : null,
+      hydrationPct,
+      hydrationMl,
+      hydrationTargetMl,
+      caloriesConsumed,
+      proteinG,
+      carbsG,
+      fatsG,
+      mealsCount: validMeals.length,
       caloriesBurned: metrics?.calories_burned != null && metrics.calories_burned > 0 ? metrics.calories_burned : null,
       focusMinutes: studySessions
         .filter(
@@ -183,6 +218,16 @@ export function formatContextPromptString(bundle: HealthContextBundle): string {
       ? `${bundle.todaySummary.stressPct}%`
       : "NOT_RECORDED";
 
+  const hydrationText =
+    bundle.todaySummary.hydrationMl !== null
+      ? `${bundle.todaySummary.hydrationMl}ml / ${bundle.todaySummary.hydrationTargetMl || 2500}ml (${bundle.todaySummary.hydrationPct}%)`
+      : "NOT_RECORDED (no hydration logged today)";
+
+  const nutritionText =
+    bundle.todaySummary.caloriesConsumed !== null
+      ? `${bundle.todaySummary.caloriesConsumed} kcal (Protein: ${bundle.todaySummary.proteinG}g, Carbs: ${bundle.todaySummary.carbsG}g, Fats: ${bundle.todaySummary.fatsG}g across ${bundle.todaySummary.mealsCount} meals)`
+      : "NOT_RECORDED (no meals logged today)";
+
   const baselineRecoveryText =
     bundle.sevenDaySummary.avgRecovery !== null
       ? `${bundle.sevenDaySummary.avgRecovery}%`
@@ -199,6 +244,8 @@ Data Availability Status: ${bundle.dataAvailability}
 Today Recovery: ${recoveryText}
 Today Sleep: ${sleepText}
 Today Biometrics: HRV ${hrvText}, SpO2 ${spo2Text}, Stress ${stressText}
+Today Hydration: ${hydrationText}
+Today Nutrition: ${nutritionText}
 Today Focus: ${bundle.todaySummary.focusMinutes}m
 7-Day Baseline Recovery: ${baselineRecoveryText}
 7-Day Avg Sleep: ${baselineSleepText}

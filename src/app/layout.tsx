@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import PwaRegister from "@/components/PwaRegister";
 import { AuthProvider } from "@/context/AuthProvider";
+import AppShell from "@/components/layout/AppShell";
 import "./globals.css";
 
 const inter = Inter({
@@ -59,7 +60,7 @@ export default function RootLayout({
       <body className="flex flex-col h-[100dvh] w-full overflow-hidden bg-[#0B0F17] text-white antialiased">
         <AuthProvider>
           <PwaRegister />
-          {children}
+          <AppShell>{children}</AppShell>
         </AuthProvider>
       </body>
     </html>

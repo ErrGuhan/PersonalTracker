@@ -1,13 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useHydration } from "@/hooks/useSupabase";
 import { Droplet } from "lucide-react";
 
 export default function HydrationWidget() {
   const { hydration, addWater } = useHydration();
+  const [isAdding, setIsAdding] = useState(false);
 
-  const pct = Math.min(100, Math.round((hydration.amountMl / hydration.targetMl) * 100));
+  // Calculate actual percentage (uncapped for text display e.g. 120%)
+  const pct = hydration.targetMl > 0 ? Math.round((hydration.amountMl / hydration.targetMl) * 100) : 0;
+  const barWidthPct = Math.min(100, Math.max(0, pct));
+
+  const handleAddWater = (amount: number) => {
+    if (isAdding) return;
+    setIsAdding(true);
+    addWater(amount);
+    setTimeout(() => setIsAdding(false), 250);
+  };
 
   return (
     <div className="bg-[#0F172A]/60 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-6 flex flex-col justify-between h-full relative overflow-hidden">
@@ -42,7 +53,7 @@ export default function HydrationWidget() {
           <motion.div
             className="bg-gradient-to-r from-cyan-500 via-teal-400 to-blue-500 h-full rounded-full shadow-[0_0_15px_rgba(6,182,212,0.6)]"
             initial={{ width: 0 }}
-            animate={{ width: `${pct}%` }}
+            animate={{ width: `${barWidthPct}%` }}
             transition={{ type: "spring", stiffness: 100, damping: 20 }}
           />
         </div>
@@ -51,30 +62,36 @@ export default function HydrationWidget() {
       {/* Tactile Quick Add Buttons */}
       <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/10">
         <motion.button
+          type="button"
+          disabled={isAdding}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.92 }}
-          onClick={() => addWater(250)}
-          className="flex flex-col items-center justify-center p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 transition cursor-pointer shadow-lg"
+          onClick={() => handleAddWater(250)}
+          className="flex flex-col items-center justify-center p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 transition cursor-pointer shadow-lg disabled:opacity-50"
         >
           <span className="text-xs font-extrabold text-white">+250 ml</span>
           <span className="text-[10px] uppercase tracking-widest text-slate-400 font-mono mt-0.5">Glass</span>
         </motion.button>
 
         <motion.button
+          type="button"
+          disabled={isAdding}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.92 }}
-          onClick={() => addWater(500)}
-          className="flex flex-col items-center justify-center p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 transition cursor-pointer shadow-lg"
+          onClick={() => handleAddWater(500)}
+          className="flex flex-col items-center justify-center p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 transition cursor-pointer shadow-lg disabled:opacity-50"
         >
           <span className="text-xs font-extrabold text-white">+500 ml</span>
           <span className="text-[10px] uppercase tracking-widest text-slate-400 font-mono mt-0.5">Bottle</span>
         </motion.button>
 
         <motion.button
+          type="button"
+          disabled={isAdding}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.92 }}
-          onClick={() => addWater(750)}
-          className="flex flex-col items-center justify-center p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 transition cursor-pointer shadow-lg"
+          onClick={() => handleAddWater(750)}
+          className="flex flex-col items-center justify-center p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 transition cursor-pointer shadow-lg disabled:opacity-50"
         >
           <span className="text-xs font-extrabold text-white">+750 ml</span>
           <span className="text-[10px] uppercase tracking-widest text-slate-400 font-mono mt-0.5">Thermos</span>

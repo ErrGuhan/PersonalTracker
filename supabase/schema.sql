@@ -137,6 +137,35 @@ create table if not exists public.habit_logs (
 create index if not exists habit_logs_user_date
   on public.habit_logs (user_id, log_date desc);
 
+-- ─── HYDRATION LOGS (Permanent Individual Fluid Entries) ─────
+create table if not exists public.hydration_logs (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null,
+  amount_ml   int not null check (amount_ml > 0),
+  logged_at   timestamptz not null default now(),
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists idx_hydration_logs_user_date
+  on public.hydration_logs (user_id, logged_at desc);
+
+-- ─── MEALS (Permanent Historical Meal & Macro Entries) ───────
+create table if not exists public.meals (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null,
+  name        text not null,
+  meal_type   text not null default 'lunch' check (meal_type in ('breakfast', 'lunch', 'dinner', 'snack')),
+  calories    int not null default 0,
+  protein_g   int not null default 0,
+  carbs_g     int not null default 0,
+  fats_g      int not null default 0,
+  logged_at   timestamptz not null default now(),
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists idx_meals_user_date
+  on public.meals (user_id, logged_at desc);
+
 -- ─── ROW LEVEL SECURITY ──────────────────────────────────────
 -- Users can only see their own rows.
 -- (Enable RLS in the Supabase dashboard or via the commands below)
@@ -149,6 +178,8 @@ alter table public.sleep_logs      enable row level security;
 alter table public.goals           enable row level security;
 alter table public.habits          enable row level security;
 alter table public.habit_logs      enable row level security;
+alter table public.hydration_logs  enable row level security;
+alter table public.meals           enable row level security;
 
 -- Public (anon) read/write — DEMO ONLY.
 -- Replace with auth.uid() = user_id policies once auth is configured.
@@ -160,6 +191,8 @@ create policy "anon full access sleep_logs"      on public.sleep_logs      for a
 create policy "anon full access goals"           on public.goals           for all using (true) with check (true);
 create policy "anon full access habits"          on public.habits          for all using (true) with check (true);
 create policy "anon full access habit_logs"      on public.habit_logs      for all using (true) with check (true);
+create policy "anon full access hydration_logs"  on public.hydration_logs  for all using (true) with check (true);
+create policy "anon full access meals"           on public.meals           for all using (true) with check (true);
 
 -- ─── SEED DATA ───────────────────────────────────────────────
 -- Demo user UUID matches DEMO_USER_ID in src/lib/db.ts
