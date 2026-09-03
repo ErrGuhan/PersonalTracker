@@ -121,6 +121,14 @@ export function useSwipeNavigation(containerRef: React.RefObject<HTMLElement | n
   }, [pathname, router]);
 
   useEffect(() => {
+    // Prefetch adjacent routes so swiping renders instantaneously
+    const next = getNextRoute(pathname);
+    const prev = getPrevRoute(pathname);
+    if (next) router.prefetch(next);
+    if (prev) router.prefetch(prev);
+  }, [pathname, router]);
+
+  useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
@@ -138,3 +146,4 @@ export function useSwipeNavigation(containerRef: React.RefObject<HTMLElement | n
     };
   }, [containerRef, handleTouchStart, handleTouchMove, handleTouchEnd]);
 }
+

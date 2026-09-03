@@ -52,13 +52,13 @@ export default function CommandPalette({
   if (!isOpen) return null;
 
   const COMMANDS = [
-    { id: "dashboard", label: "Go to Main Dashboard", category: "NAVIGATION", icon: "dashboard", action: () => { onSelectNav("dashboard"); onClose(); } },
-    { id: "study", label: "Open Study Studio", category: "NAVIGATION", icon: "menu_book", action: () => { onSelectNav("study"); onClose(); } },
-    { id: "fitness", label: "Open Fitness Hub", category: "NAVIGATION", icon: "fitness_center", action: () => { onSelectNav("fitness"); onClose(); } },
-    { id: "health", label: "Open Health Analytics", category: "NAVIGATION", icon: "ecg_heart", action: () => { onSelectNav("health"); onClose(); } },
-    { id: "routines", label: "Open Routines & Habits", category: "NAVIGATION", icon: "published_with_changes", action: () => { onSelectNav("routines"); onClose(); } },
-    { id: "nutrition", label: "Open Hydration & Nutrition", category: "NAVIGATION", icon: "restaurant", action: () => { onSelectNav("nutrition"); onClose(); } },
-    { id: "goals", label: "View Milestones & Goals", category: "NAVIGATION", icon: "insights", action: () => { onSelectNav("goals"); onClose(); } },
+    { id: "dashboard", label: "Go to Main Dashboard", category: "NAVIGATION", icon: "dashboard", action: () => { onSelectNav("/"); onClose(); } },
+    { id: "health", label: "Open Health Analytics", category: "NAVIGATION", icon: "ecg_heart", action: () => { onSelectNav("/health"); onClose(); } },
+    { id: "study", label: "Open Study Studio", category: "NAVIGATION", icon: "menu_book", action: () => { onSelectNav("/study"); onClose(); } },
+    { id: "fitness", label: "Open Fitness Hub", category: "NAVIGATION", icon: "fitness_center", action: () => { onSelectNav("/fit"); onClose(); } },
+    { id: "routines", label: "Open Routines & Habits", category: "NAVIGATION", icon: "published_with_changes", action: () => { onSelectNav("/habits"); onClose(); } },
+    { id: "nutrition", label: "Open Hydration & Nutrition", category: "NAVIGATION", icon: "restaurant", action: () => { onSelectNav("/fuel"); onClose(); } },
+    { id: "goals", label: "View Milestones & Goals", category: "NAVIGATION", icon: "insights", action: () => { onSelectNav("/goals"); onClose(); } },
 
     { id: "log-workout", label: "Log Workout Activity", category: "LOGGING", icon: "add_task", action: () => { onClose(); onOpenWorkoutModal(); } },
     { id: "log-study", label: "Log Study Session", category: "LOGGING", icon: "local_library", action: () => { onClose(); onOpenStudyModal(); } },

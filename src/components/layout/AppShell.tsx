@@ -3,7 +3,7 @@
 import { useRef, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import { ModalProvider, useModals } from "@/context/ModalContext";
 import { useAuthContext } from "@/context/AuthProvider";
@@ -109,18 +109,9 @@ function AppShellContent({ children }: { children: ReactNode }) {
         ref={mainRef}
         className="flex-1 w-full overflow-y-auto overflow-x-hidden scroll-smooth pb-32 lg:pb-16 touch-pan-y relative pt-24 sm:pt-28 px-4 sm:px-8 lg:px-12 max-w-[1440px] lg:ml-72"
       >
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="w-full"
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        <div key={pathname} className="w-full animate-fadeIn">
+          {children}
+        </div>
       </main>
 
       {/* ─── Sleek Floating Bottom Navigation Bar (Mobile & Tablet < LG) ─── */}

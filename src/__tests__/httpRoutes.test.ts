@@ -46,6 +46,7 @@ async function run() {
     { from: "/routines", to: "/habits" },
     { from: "/nutrition", to: "/fuel" },
     { from: "/dashboard", to: "/" },
+    { from: "/home", to: "/" },
   ];
 
   for (const a of legacyAliases) {

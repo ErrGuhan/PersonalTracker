@@ -1,5 +1,6 @@
 // ─── LifeSync OS — Centralized Navigation System ─────────────────────
 // SINGLE SOURCE OF TRUTH FOR ALL ROUTES, ICONS, LABELS, AND SWIPE ORDER
+// EXACT ORDER: Health -> Study -> Fit -> Home (CENTER) -> Habits -> Fuel -> Goals
 
 export interface NavItem {
   id: string;
@@ -12,12 +13,11 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   {
-    id: "dashboard",
-    href: "/",
-    label: "Dashboard",
-    shortLabel: "Home",
-    icon: "dashboard",
-    aliases: ["/dashboard"],
+    id: "health",
+    href: "/health",
+    label: "Health Analytics",
+    shortLabel: "Health",
+    icon: "ecg_heart",
   },
   {
     id: "study",
@@ -35,11 +35,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     aliases: ["/fitness"],
   },
   {
-    id: "health",
-    href: "/health",
-    label: "Health Analytics",
-    shortLabel: "Health",
-    icon: "ecg_heart",
+    id: "dashboard",
+    href: "/",
+    label: "Dashboard",
+    shortLabel: "Home",
+    icon: "dashboard",
+    aliases: ["/dashboard", "/home"],
   },
   {
     id: "routines",
@@ -67,7 +68,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
 ] as const;
 
 /**
+ * Returns the canonical Home navigation item.
+ */
+export const HOME_NAV_ITEM = NAV_ITEMS[3]; // Index 3 is Home ("/")
+
+/**
  * Normalizes any pathname or alias to the canonical NavItem.
+ * Defaults to Home ("/") if route is not recognized or root.
  */
 export function getCanonicalNavItem(pathname: string): NavItem {
   const cleanPath = pathname.split("?")[0].replace(/\/+$/, "") || "/";
@@ -77,7 +84,7 @@ export function getCanonicalNavItem(pathname: string): NavItem {
     if (item.aliases?.includes(cleanPath)) return item;
   }
 
-  return NAV_ITEMS[0];
+  return HOME_NAV_ITEM;
 }
 
 /**
@@ -91,7 +98,8 @@ export function isRouteActive(currentPath: string, itemHref: string): boolean {
 
 /**
  * Returns the next route for swipe left gestures.
- * Returns null if already at the last route.
+ * Sequence: Health -> Study -> Fit -> Home -> Habits -> Fuel -> Goals
+ * Returns null if already at the last route (Goals).
  */
 export function getNextRoute(currentPath: string): string | null {
   const canonical = getCanonicalNavItem(currentPath);
@@ -104,7 +112,8 @@ export function getNextRoute(currentPath: string): string | null {
 
 /**
  * Returns the previous route for swipe right gestures.
- * Returns null if already at the first route.
+ * Sequence: Goals -> Fuel -> Habits -> Home -> Fit -> Study -> Health
+ * Returns null if already at the first route (Health).
  */
 export function getPrevRoute(currentPath: string): string | null {
   const canonical = getCanonicalNavItem(currentPath);
