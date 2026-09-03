@@ -122,15 +122,33 @@ export function getScopedUserId(): string {
   return activeScopedUserId;
 }
 
+const memoryStore: Record<string, string> = {};
+
 function getLocalKey(key: string, userId?: string): string {
   const uid = userId || getScopedUserId();
   return `lifesync_${uid}_${key}`;
 }
 
+export function clearMemoryStore(): void {
+  for (const k of Object.keys(memoryStore)) {
+    delete memoryStore[k];
+  }
+}
+
 function getLocal<T>(key: string, fallback: T, userId?: string): T {
-  if (typeof window === "undefined") return fallback;
+  const fullKey = getLocalKey(key, userId);
+  if (typeof window === "undefined") {
+    if (memoryStore[fullKey] !== undefined) {
+      try {
+        return JSON.parse(memoryStore[fullKey]);
+      } catch {
+        return fallback;
+      }
+    }
+    return fallback;
+  }
   try {
-    const scopedRaw = localStorage.getItem(getLocalKey(key, userId));
+    const scopedRaw = localStorage.getItem(fullKey);
     if (scopedRaw !== null) return JSON.parse(scopedRaw);
 
     // Backward-compatibility fallback for legacy un-scoped data
@@ -145,13 +163,17 @@ function getLocal<T>(key: string, fallback: T, userId?: string): T {
 }
 
 function setLocal<T>(key: string, value: T, userId?: string): T {
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(getLocalKey(key, userId), JSON.stringify(value));
-      notifyUpdate();
-    } catch (err) {
-      console.warn(`[LocalStorage] Write ${key} error:`, err);
-    }
+  const fullKey = getLocalKey(key, userId);
+  const serialized = JSON.stringify(value);
+  if (typeof window === "undefined") {
+    memoryStore[fullKey] = serialized;
+    return value;
+  }
+  try {
+    localStorage.setItem(fullKey, serialized);
+    notifyUpdate();
+  } catch (err) {
+    console.warn(`[LocalStorage] Write ${key} error:`, err);
   }
   return value;
 }
@@ -617,64 +639,168 @@ export async function getGoals(): Promise<Goal[]> {
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
 
-    if (!error && data && data.length > 0) return data as Goal[];
+    if (error) throw error;
+    if (data) {
+      setLocal("goals", data as Goal[], userId);
+      return data as Goal[];
+    }
   } catch (err) {
-    console.warn("[DB] goals query fallback to local:", err);
+    console.warn("[DB] goals query remote failed, using local user cache:", err);
+    return getLocal<Goal[]>("goals", [], userId);
   }
-  return getLocal("goals", INITIAL_GOALS);
+  return [];
 }
 
 export async function updateGoalProgress(
   goalId: string,
   progress: number
 ): Promise<Goal | null> {
+  const cleanProgress = Math.round(Number(progress));
+  if (isNaN(cleanProgress) || cleanProgress < 0 || cleanProgress > 100) {
+    throw new Error(`Invalid goal progress: ${progress}. Must be an integer between 0 and 100.`);
+  }
+
   const userId = await getActiveUserId();
-  const current = getLocal("goals", INITIAL_GOALS);
+  const current = getLocal<Goal[]>("goals", [], userId);
+  const nowIso = new Date().toISOString();
+
   const updatedList = current.map((g) =>
-    g.id === goalId ? { ...g, progress, updated_at: new Date().toISOString() } : g
+    g.id === goalId ? { ...g, progress: cleanProgress, updated_at: nowIso } : g
   );
-  setLocal("goals", updatedList);
-  const updatedGoal = updatedList.find((g) => g.id === goalId) ?? null;
+  setLocal("goals", updatedList, userId);
+  const fallbackGoal = updatedList.find((g) => g.id === goalId) ?? null;
 
   try {
     const { data, error } = await supabase
       .from("goals")
-      .update({ progress, updated_at: new Date().toISOString() } as unknown as never)
+      .update({ progress: cleanProgress, updated_at: nowIso } as unknown as never)
       .eq("id", goalId)
       .eq("user_id", userId)
       .select()
       .single();
 
     if (!error && data) return data as Goal;
+    if (error) console.warn("[DB] updateGoalProgress remote error:", error);
   } catch (err) {
     console.warn("[DB] update goal saved to local storage:", err);
   }
-  return updatedGoal;
+  return fallbackGoal;
+}
+
+export async function updateGoal(
+  goalId: string,
+  updates: Partial<Omit<Goal, "id" | "user_id" | "created_at">>
+): Promise<Goal | null> {
+  const userId = await getActiveUserId();
+  const current = getLocal<Goal[]>("goals", [], userId);
+  const nowIso = new Date().toISOString();
+
+  // Validate progress if included in updates
+  if (updates.progress !== undefined) {
+    const p = Math.round(Number(updates.progress));
+    if (isNaN(p) || p < 0 || p > 100) {
+      throw new Error(`Invalid goal progress: ${updates.progress}. Must be an integer between 0 and 100.`);
+    }
+    updates.progress = p;
+  }
+
+  const cleanUpdates = {
+    ...updates,
+    updated_at: nowIso,
+  };
+
+  const updatedList = current.map((g) =>
+    g.id === goalId ? { ...g, ...cleanUpdates } : g
+  );
+  setLocal("goals", updatedList, userId);
+  const fallbackGoal = updatedList.find((g) => g.id === goalId) ?? null;
+
+  try {
+    const { data, error } = await supabase
+      .from("goals")
+      .update(cleanUpdates as unknown as never)
+      .eq("id", goalId)
+      .eq("user_id", userId)
+      .select()
+      .single();
+
+    if (!error && data) return data as Goal;
+    if (error) console.warn("[DB] updateGoal remote error:", error);
+  } catch (err) {
+    console.warn("[DB] updateGoal remote call failed, using local:", err);
+  }
+  return fallbackGoal;
+}
+
+export async function deleteGoal(goalId: string): Promise<boolean> {
+  const userId = await getActiveUserId();
+  const current = getLocal<Goal[]>("goals", [], userId);
+  const filtered = current.filter((g) => g.id !== goalId);
+  setLocal("goals", filtered, userId);
+
+  try {
+    const { error } = await supabase
+      .from("goals")
+      .delete()
+      .eq("id", goalId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.warn("[DB] deleteGoal remote error:", error);
+    }
+    return true;
+  } catch (err) {
+    console.warn("[DB] deleteGoal remote call failed:", err);
+    return true; // Local removal succeeded
+  }
 }
 
 export async function createGoal(
   goal: Omit<Goal, "id" | "user_id" | "created_at" | "updated_at">
 ): Promise<Goal | null> {
+  if (!goal.title || !goal.title.trim()) {
+    throw new Error("Goal title is required");
+  }
+
+  const progress = Math.round(Number(goal.progress ?? 0));
+  if (isNaN(progress) || progress < 0 || progress > 100) {
+    throw new Error("Goal progress must be between 0 and 100");
+  }
+
   const userId = await getActiveUserId();
+  const nowIso = new Date().toISOString();
   const newGoal: Goal = {
     ...goal,
+    title: goal.title.trim(),
+    progress,
     id: `g-local-${Date.now()}`,
     user_id: userId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: nowIso,
+    updated_at: nowIso,
   };
 
-  const existing = getLocal("goals", INITIAL_GOALS);
-  setLocal("goals", [...existing, newGoal]);
+  const existing = getLocal<Goal[]>("goals", [], userId);
+  setLocal("goals", [...existing, newGoal], userId);
 
   try {
     const { data, error } = await supabase
       .from("goals")
-      .insert({ ...goal, user_id: userId } as unknown as never)
+      .insert({
+        ...goal,
+        title: goal.title.trim(),
+        progress,
+        user_id: userId,
+      } as unknown as never)
       .select()
       .single();
 
-    if (!error && data) return data as Goal;
+    if (!error && data) {
+      const savedGoal = data as Goal;
+      const updatedList = existing.map((g) => (g.id === newGoal.id ? savedGoal : g));
+      setLocal("goals", updatedList, userId);
+      return savedGoal;
+    }
+    if (error) console.warn("[DB] createGoal remote error:", error);
   } catch (err) {
     console.warn("[DB] create goal saved to local storage:", err);
   }

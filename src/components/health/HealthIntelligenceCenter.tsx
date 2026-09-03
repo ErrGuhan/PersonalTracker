@@ -21,6 +21,7 @@ import {
   useAiProfile,
   useHydration,
   useNutrition,
+  useGoals,
 } from "@/hooks/useSupabase";
 
 import {
@@ -95,6 +96,7 @@ export default function HealthIntelligenceCenter({
   const { profile } = useAiProfile();
   const { hydration } = useHydration();
   const { meals } = useNutrition();
+  const { goals } = useGoals();
 
   // ─── Deterministic Computations (Immediate & 100% Reliable) ───
   const recoveryIntel = useMemo(() => {
@@ -128,9 +130,10 @@ export default function HealthIntelligenceCenter({
       habits,
       profile,
       hydration,
-      meals
+      meals,
+      goals
     );
-  }, [metrics, latestSleep, healthHistory, sleepHistory, workouts, habits, profile, hydration, meals]);
+  }, [metrics, latestSleep, healthHistory, sleepHistory, workouts, habits, profile, hydration, meals, goals]);
 
   // ─── AI States & Progressive Loading ─────────────────────────
   const [heroData, setHeroData] = useState<HeroHealthIntelligence | null>(null);

@@ -19,6 +19,8 @@ import {
   setAiPersonalizationEnabled as setAiPersonalizationDb,
   getGoals,
   updateGoalProgress,
+  updateGoal,
+  deleteGoal,
   createGoal,
   logWorkout,
   logStudySession,
@@ -336,17 +338,92 @@ export function useAiProfile() {
 // GOALS
 // ─────────────────────────────────────────────────────────
 export function useGoals() {
-  const { data, loading, error, refetch } = useAsync(getGoals);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+
+  const fetchGoals = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getGoals();
+      setGoals(data);
+    } catch (err: any) {
+      console.warn("[useGoals] Query error:", err);
+      setError(err?.message || "Unable to load strategic goals from database.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchGoals();
+  }, [fetchGoals]);
 
   const updateProgress = useCallback(
     async (goalId: string, progress: number) => {
+      const cleanProgress = Math.round(Number(progress));
+      if (isNaN(cleanProgress) || cleanProgress < 0 || cleanProgress > 100) {
+        throw new Error("Progress must be between 0 and 100");
+      }
+
+      // Optimistic update
+      const previousGoals = [...goals];
+      setGoals((prev) =>
+        prev.map((g) => (g.id === goalId ? { ...g, progress: cleanProgress } : g))
+      );
       setUpdating(goalId);
-      await updateGoalProgress(goalId, progress);
-      setUpdating(null);
-      refetch();
+
+      try {
+        const result = await updateGoalProgress(goalId, cleanProgress);
+        if (!result) throw new Error("Database returned null when saving progress");
+        setGoals((prev) =>
+          prev.map((g) => (g.id === goalId ? result : g))
+        );
+      } catch (err: any) {
+        // Rollback optimistic update
+        setGoals(previousGoals);
+        throw err;
+      } finally {
+        setUpdating(null);
+      }
     },
-    [refetch]
+    [goals]
+  );
+
+  const editGoal = useCallback(
+    async (goalId: string, updates: Partial<Omit<Goal, "id" | "user_id" | "created_at">>) => {
+      setUpdating(goalId);
+      try {
+        const result = await updateGoal(goalId, updates);
+        if (result) {
+          setGoals((prev) =>
+            prev.map((g) => (g.id === goalId ? result : g))
+          );
+        }
+        return result;
+      } finally {
+        setUpdating(null);
+      }
+    },
+    []
+  );
+
+  const removeGoal = useCallback(
+    async (goalId: string) => {
+      setUpdating(goalId);
+      try {
+        const success = await deleteGoal(goalId);
+        if (success) {
+          setGoals((prev) => prev.filter((g) => g.id !== goalId));
+        }
+        return success;
+      } finally {
+        setUpdating(null);
+      }
+    },
+    []
   );
 
   useEffect(() => {
@@ -357,16 +434,25 @@ export function useGoals() {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "goals", filter: `user_id=eq.${uid}` },
-          () => { refetch(); }
+          () => { fetchGoals(); }
         )
         .subscribe();
     });
     return () => {
       if (channel) supabase.removeChannel(channel);
     };
-  }, [refetch]);
+  }, [fetchGoals]);
 
-  return { goals: data ?? [], loading, error, refetch, updateProgress, updating };
+  return {
+    goals,
+    loading,
+    error,
+    refetch: fetchGoals,
+    updateProgress,
+    editGoal,
+    deleteGoal: removeGoal,
+    updating,
+  };
 }
 
 export function useCreateGoal() {

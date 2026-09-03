@@ -12,6 +12,7 @@ import type {
   AiUserProfile,
   HydrationLog,
   MealLog,
+  Goal,
 } from "@/lib/database.types";
 import {
   calculateDeterministicRecovery,
@@ -54,6 +55,16 @@ export interface HealthContextBundle {
     averageStreak: number;
     strongestHabit: string;
   };
+  goalsSummary?: {
+    totalGoals: number;
+    completedGoals: number;
+    activeGoals: {
+      title: string;
+      category: string;
+      progress: number;
+      target: string;
+    }[];
+  };
   profileSummary?: Partial<AiUserProfile>;
 }
 
@@ -72,7 +83,8 @@ export function buildHealthAiContextBundle(
   habits: Habit[],
   profile?: AiUserProfile,
   hydration?: HydrationLog | null,
-  meals?: MealLog[]
+  meals?: MealLog[],
+  goals?: Goal[]
 ): HealthContextBundle {
   const currentRecovery = calculateDeterministicRecovery(metrics, latestSleep);
   const { baselineScore, daysEvaluated } = calculateRecoveryBaseline(healthHistory);
@@ -176,6 +188,18 @@ export function buildHealthAiContextBundle(
       averageStreak: avgStreak,
       strongestHabit,
     },
+    goalsSummary: goals
+      ? {
+          totalGoals: goals.length,
+          completedGoals: goals.filter((g) => g.progress >= 100).length,
+          activeGoals: goals.map((g) => ({
+            title: g.title,
+            category: g.category,
+            progress: g.progress,
+            target: g.target_description,
+          })),
+        }
+      : undefined,
     profileSummary: profile?.personalizationEnabled
       ? {
           goals: profile.goals,
@@ -252,6 +276,11 @@ Today Focus: ${bundle.todaySummary.focusMinutes}m
 7-Day Workout Total: ${bundle.sevenDaySummary.totalWorkoutMinutes}m
 Habits: ${bundle.habitSummary.completedToday}/${bundle.habitSummary.totalHabits} completed today (Top: ${bundle.habitSummary.strongestHabit}, Avg Streak: ${bundle.habitSummary.averageStreak}d)
 Tracked Days History: ${bundle.sevenDaySummary.trackedDaysCount} days
+${
+  bundle.goalsSummary && bundle.goalsSummary.totalGoals > 0
+    ? `Active Goals: ${bundle.goalsSummary.activeGoals.map((g) => `${g.title} (${g.category}: ${g.progress}%)`).join("; ")}`
+    : "Active Goals: None recorded yet"
+}
 ${
   bundle.profileSummary
     ? `User Profile: Priorities: ${bundle.profileSummary.currentPriorities?.join(", ") || "General health"}; Planning: ${bundle.profileSummary.planningStyle || "Balanced"}; Workout style: ${bundle.profileSummary.preferredWorkoutStyle || "Hybrid"}`
