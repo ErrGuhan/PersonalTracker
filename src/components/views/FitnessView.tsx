@@ -217,30 +217,35 @@ export default function FitnessView() {
         {/* Header Section */}
         <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
           <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/20">
+                Movement & Caloric Burn
+              </span>
+            </div>
             <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
               Fitness Hub
             </h2>
-            <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">
+            <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
               Structured daily planning · Real actual workout logs · Scientific MET calorie tracking
             </p>
           </div>
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <button
               onClick={() => setIsPlanModalOpen(true)}
-              className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1.5"
+              className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-cyan-400" />
-              {program ? "Manage Plan" : "Create Plan"}
+              <span>{program ? "Manage Plan" : "Create Plan"}</span>
             </button>
             <button
               onClick={() => {
                 setPrefilledWorkoutData(undefined);
                 setIsLogModalOpen(true);
               }}
-              className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-secondary text-slate-950 font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(236,106,6,0.4)] hover:bg-secondary/90 transition cursor-pointer flex items-center justify-center gap-1.5"
+              className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(236,106,6,0.35)] hover:brightness-110 active:scale-95 transition cursor-pointer flex items-center justify-center gap-1.5"
             >
-              <Plus className="w-4 h-4" />
-              Log Workout
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Log Workout</span>
             </button>
           </div>
         </motion.div>
@@ -250,33 +255,33 @@ export default function FitnessView() {
             ───────────────────────────────────────────────────────── */}
         <motion.section variants={itemVariants} className="w-full">
           {!program ? (
-            <div className="glass-panel rounded-2xl p-6 sm:p-8 border border-white/10 relative overflow-hidden bg-gradient-to-r from-[#0e1626] to-[#121c2e]">
+            <div className="liquid-glass rounded-3xl p-6 sm:p-8 border border-white/[0.08] shadow-2xl relative overflow-hidden">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="space-y-1 max-w-xl">
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
                       System A · Workout TODO
                     </span>
-                    <span className="text-xs text-[var(--muted-foreground)]">No active training plan</span>
+                    <span className="text-xs text-slate-400">No active training plan</span>
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-white">
                     Start Your Next Training Program
                   </h3>
-                  <p className="text-xs sm:text-sm text-on-surface-variant">
+                  <p className="text-xs sm:text-sm text-slate-400">
                     Build a structured Day 1 → Day N workout routine with specific daily exercises, sets, reps, and scheduled recovery days.
                   </p>
                 </div>
                 <button
                   onClick={() => setIsPlanModalOpen(true)}
-                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:opacity-90 transition shrink-0 flex items-center gap-2"
+                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-400 to-cyan-500 text-slate-950 font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(6,182,212,0.35)] hover:brightness-110 active:scale-95 transition shrink-0 flex items-center gap-2 cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4" />
-                  Create First Plan
+                  <span>Create First Plan</span>
                 </button>
               </div>
             </div>
           ) : (
-            <div className="glass-panel rounded-2xl p-5 sm:p-6 border border-cyan-500/30 shadow-xl shadow-cyan-950/20 relative overflow-hidden bg-gradient-to-b from-[#0f172a]/95 to-[#0b1120]/98">
+            <div className="liquid-glass rounded-3xl p-5 sm:p-6 border border-white/[0.08] shadow-2xl relative overflow-hidden">
               {/* Card Top: Program Info & Day Navigation */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
                 <div className="min-w-0">

@@ -8,6 +8,7 @@ import UpdateProgressModal from "@/components/goals/UpdateProgressModal";
 import DeleteGoalModal from "@/components/goals/DeleteGoalModal";
 import { useGoals } from "@/hooks/useSupabase";
 import type { Goal } from "@/lib/database.types";
+import { Plus, SlidersHorizontal, MoreVertical, Pencil, Trash2, Check, Target } from "lucide-react";
 
 const SkeletonCard = () => (
   <div className="p-5 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-xl overflow-hidden relative h-[160px] flex flex-col justify-between">
@@ -164,26 +165,30 @@ export default function GoalsView() {
         onClick={() => setActiveMenuGoalId(null)}
       >
         {/* Header */}
-        <motion.div variants={itemVariants} className="flex justify-between items-end">
+        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
           <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-cyan-400/10 text-cyan-300 border border-cyan-400/20">
+                Strategic Milestones
+              </span>
+            </div>
             <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Milestones & Strategic Goals
+              Milestones & Goals
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-              Track core objectives, exams, and athletic achievements.
+              Track core objectives, academic targets, and athletic achievements.
             </p>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={(e) => {
               e.stopPropagation();
               setShowCreateModal(true);
             }}
-            className="px-4 py-2.5 rounded-xl bg-primary text-slate-950 font-extrabold text-xs shadow-[0_0_20px_rgba(76,215,246,0.4)] hover:bg-primary/90 transition cursor-pointer shrink-0"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-cyan-500 text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(76,215,246,0.35)] hover:brightness-110 active:scale-95 transition cursor-pointer shrink-0"
           >
-            + New Goal
-          </motion.button>
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>New Goal</span>
+          </button>
         </motion.div>
 
         {/* ─── State Machine ─── */}
@@ -198,34 +203,35 @@ export default function GoalsView() {
           /* 2. Error State (Never masquerade as empty state) */
           <motion.div
             variants={itemVariants}
-            className="glass-panel p-8 rounded-2xl border border-red-500/20 text-center flex flex-col items-center gap-4 bg-red-950/20"
+            className="liquid-glass p-8 rounded-3xl border border-red-500/20 text-center flex flex-col items-center gap-4 bg-red-950/20"
           >
             <div className="w-12 h-12 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400">
-              <span className="material-symbols-outlined text-2xl">error_outline</span>
+              <span className="text-2xl">⚠️</span>
             </div>
             <div>
               <h3 className="text-base font-bold text-white">Unable to load strategic goals</h3>
               <p className="text-xs text-slate-400 mt-1 max-w-sm">{error}</p>
             </div>
             <button
-              onClick={() => refetch()}
-              className="px-5 py-2 rounded-xl bg-primary/15 border border-primary/30 text-primary text-xs font-bold hover:bg-primary/25 transition flex items-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(76,215,246,0.2)]"
+              onClick={refetch}
+              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition cursor-pointer"
             >
-              <span className="material-symbols-outlined text-sm">refresh</span>
-              Retry Connection
+              Retry
             </button>
           </motion.div>
         ) : goals.length === 0 ? (
-          /* 3. Empty State (Genuinely 0 active goals) */
-          <EmptyState
-            icon="flag"
-            title="No Active Strategic Goals"
-            description="Define your high-level milestones in health, learning, or fitness to stay focused on long-term achievement."
-            actionLabel="Create First Goal"
-            onAction={() => setShowCreateModal(true)}
-          />
+          /* 3. Empty State */
+          <motion.div variants={itemVariants}>
+            <EmptyState
+              icon={Target}
+              title="No Milestones Defined Yet"
+              description="Establish your strategic milestones—whether running a 10k, achieving a 4.0 GPA, or consistent meditation."
+              actionLabel="Create First Milestone"
+              onAction={() => setShowCreateModal(true)}
+            />
+          </motion.div>
         ) : (
-          /* 4. Active Goals Grid */
+          /* 4. Populated State: Goals List Grid */
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <AnimatePresence mode="popLayout">
               {goals.map((g) => {
@@ -236,13 +242,13 @@ export default function GoalsView() {
                   <motion.li
                     key={g.id}
                     variants={itemVariants}
-                    className="glass-panel p-5 sm:p-6 rounded-2xl flex flex-col gap-4 shadow-xl relative border border-white/10 hover:border-white/20 transition-all"
+                    className="liquid-glass p-5 sm:p-6 rounded-3xl flex flex-col gap-4 shadow-xl relative border border-white/[0.08] hover:border-cyan-400/30 transition-all"
                   >
                     {/* Top Row: Icon + Title + Status/Percentage */}
                     <div className="flex justify-between items-start gap-3">
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div
-                          className="w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0 border"
+                          className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0 border shadow-inner"
                           style={{
                             backgroundColor: `${g.accent || "#4cd7f6"}20`,
                             borderColor: `${g.accent || "#4cd7f6"}40`,
@@ -251,10 +257,10 @@ export default function GoalsView() {
                           {g.icon || "🎯"}
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-extrabold text-sm sm:text-base text-white truncate">
+                          <h3 className="font-bold text-sm sm:text-base text-white truncate">
                             {g.title}
                           </h3>
-                          <p className="text-[10px] text-primary font-mono uppercase tracking-wider mt-0.5">
+                          <p className="text-[10px] text-cyan-400 font-mono uppercase tracking-wider mt-0.5">
                             {g.category}
                           </p>
                         </div>
@@ -263,12 +269,12 @@ export default function GoalsView() {
                       {/* Percentage or Completed Badge */}
                       <div className="shrink-0 text-right">
                         {isComplete ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.3)]">
-                            <span>✓</span>
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.3)]">
+                            <Check className="w-3 h-3 stroke-[3]" />
                             <span>100% Done</span>
                           </span>
                         ) : (
-                          <span className="text-xl font-extrabold text-primary font-mono drop-shadow-[0_0_8px_rgba(76,215,246,0.3)]">
+                          <span className="text-xl font-black text-cyan-300 font-mono drop-shadow-[0_0_8px_rgba(76,215,246,0.3)]">
                             {g.progress}%
                           </span>
                         )}
@@ -276,12 +282,12 @@ export default function GoalsView() {
                     </div>
 
                     {/* Thin Progress Bar */}
-                    <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden relative">
+                    <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden relative border border-white/[0.06]">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ease-out ${
                           isComplete
                             ? "bg-emerald-400 shadow-[0_0_10px_#34d399]"
-                            : "bg-gradient-to-r from-primary-container to-primary shadow-[0_0_10px_rgba(76,215,246,0.5)]"
+                            : "bg-gradient-to-r from-cyan-500 to-blue-500 shadow-[0_0_10px_rgba(76,215,246,0.5)]"
                         }`}
                         style={{ width: `${Math.min(100, Math.max(0, g.progress))}%` }}
                       />
@@ -298,16 +304,16 @@ export default function GoalsView() {
                     </div>
 
                     {/* Bottom Action Row: Primary [Update Progress] + [⋮] Menu */}
-                    <div className="flex items-center justify-between pt-3 border-t border-white/5 relative">
+                    <div className="flex items-center justify-between pt-3 border-t border-white/[0.06] relative">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setProgressModalGoal(g);
                         }}
-                        className="px-4 py-2 rounded-xl bg-primary/10 border border-primary/30 hover:border-primary/60 hover:bg-primary/20 text-primary text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(76,215,246,0.15)] active:scale-95"
+                        className="px-3.5 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 hover:border-cyan-500/60 hover:bg-cyan-500/20 text-cyan-300 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(76,215,246,0.15)] active:scale-95"
                       >
-                        <span className="material-symbols-outlined text-sm">tune</span>
+                        <SlidersHorizontal className="w-3.5 h-3.5" />
                         <span>Update Progress</span>
                       </button>
 
@@ -326,7 +332,7 @@ export default function GoalsView() {
                               : "text-slate-400 hover:text-white hover:bg-white/5"
                           }`}
                         >
-                          <span className="material-symbols-outlined text-lg">more_vert</span>
+                          <MoreVertical className="w-4 h-4" />
                         </button>
 
                         {/* Dropdown Menu Popup */}
@@ -336,7 +342,7 @@ export default function GoalsView() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ duration: 0.12 }}
-                            className="absolute right-0 bottom-full mb-1 w-44 rounded-xl bg-[#181C24] border border-white/15 shadow-2xl py-1 z-30 backdrop-blur-2xl"
+                            className="absolute right-0 bottom-full mb-1 w-44 rounded-2xl liquid-glass border border-white/[0.12] shadow-2xl py-1 z-30"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button
@@ -347,7 +353,7 @@ export default function GoalsView() {
                               }}
                               className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 flex items-center gap-2 cursor-pointer"
                             >
-                              <span className="material-symbols-outlined text-sm text-primary">tune</span>
+                              <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
                               <span>Update Progress</span>
                             </button>
 
@@ -359,11 +365,11 @@ export default function GoalsView() {
                               }}
                               className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 flex items-center gap-2 cursor-pointer"
                             >
-                              <span className="material-symbols-outlined text-sm text-cyan-400">edit</span>
+                              <Pencil className="w-3.5 h-3.5 text-cyan-400" />
                               <span>Edit Goal</span>
                             </button>
 
-                            <div className="h-[1px] bg-white/10 my-1" />
+                            <div className="h-[1px] bg-white/[0.08] my-1" />
 
                             <button
                               type="button"
@@ -371,9 +377,9 @@ export default function GoalsView() {
                                 setActiveMenuGoalId(null);
                                 setDeleteModalGoal(g);
                               }}
-                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-red-400 hover:bg-red-500/15 flex items-center gap-2 cursor-pointer"
+                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-red-400 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer"
                             >
-                              <span className="material-symbols-outlined text-sm text-red-400">delete</span>
+                              <Trash2 className="w-3.5 h-3.5" />
                               <span>Delete Goal</span>
                             </button>
                           </motion.div>

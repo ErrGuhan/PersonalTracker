@@ -85,7 +85,7 @@ export default function HabitTrackerWidget() {
   };
 
   return (
-    <div className="bg-[#0F172A]/60 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-6 flex flex-col gap-6 relative overflow-hidden">
+    <div className="liquid-glass rounded-3xl p-5 sm:p-6 flex flex-col gap-6 relative overflow-hidden border border-white/[0.08] shadow-2xl">
       {/* Background Glow Accent */}
       <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
 

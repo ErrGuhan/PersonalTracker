@@ -28,31 +28,54 @@ export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
 
   const userEmail = user?.email;
 
+  // Current formatted date for greeting
+  const todayFormatted = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(new Date());
+
   return (
-    <header className="fixed top-0 left-0 lg:left-72 w-full lg:w-[calc(100%-18rem)] z-50 px-4 sm:px-6 py-3 bg-[#0B0F17]/70 backdrop-blur-xl border-b border-white/[0.08]">
+    <header className="fixed top-0 left-0 lg:left-64 w-full lg:w-[calc(100%-16rem)] z-30 px-4 sm:px-6 py-3 liquid-glass border-b border-white/[0.08] backdrop-blur-2xl">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
-        {/* Brand Logo & Name */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-600/30 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.2)]">
-            <Zap className="w-5 h-5 text-cyan-400 fill-cyan-400/30" />
+        {/* Mobile: Brand Logo | Desktop: Date & Greeting */}
+        <div className="flex items-center gap-3">
+          {/* Mobile Logo */}
+          <div className="flex lg:hidden items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-slate-950 font-black shadow-[0_0_12px_rgba(76,215,246,0.3)]">
+              <Zap className="w-4 h-4 fill-slate-950 stroke-slate-950" />
+            </div>
+            <span className="text-sm font-bold tracking-tight text-white">
+              LifeSync <span className="text-cyan-400 font-mono text-[10px] font-bold px-1 py-0.5 rounded bg-cyan-400/10 border border-cyan-400/20">OS</span>
+            </span>
           </div>
-          <div className="flex flex-col">
-            <span className="text-base font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-              LifeSync <span className="text-cyan-400 font-semibold text-xs tracking-wider uppercase ml-0.5">OS</span>
+
+          {/* Desktop Greeting & Date */}
+          <div className="hidden lg:flex items-center gap-3">
+            <span className="text-xs font-semibold text-white tracking-wide">
+              {isAuthenticated ? `Welcome back, ${userEmail?.split("@")[0] || "User"}` : "Welcome to LifeSync OS"}
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className="text-xs text-slate-400 font-mono">
+              {todayFormatted}
             </span>
           </div>
         </div>
 
         {/* Right Actions: Search + Auth CTA */}
-        <div className="flex items-center gap-3">
-          {/* Quick Search Trigger — CSS-only hover/active, no JS */}
+        <div className="flex items-center gap-2.5">
+          {/* Quick Search Trigger */}
           <button
             onClick={onOpenSearch}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 transition-colors cursor-pointer hover:scale-105 active:scale-95"
-            aria-label="Search"
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 transition-colors cursor-pointer text-xs"
+            aria-label="Search commands"
           >
-            <Search className="w-4 h-4" />
+            <Search className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline text-slate-400">Search...</span>
+            <kbd className="hidden sm:inline px-1.5 py-0.5 text-[9px] font-mono bg-white/[0.06] rounded text-slate-400 border border-white/[0.08]">
+              ⌘K
+            </kbd>
           </button>
 
           {!isAuthenticated ? (
