@@ -77,7 +77,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const mainRef = useRef<HTMLElement | null>(null);
   const { user, isAuthenticated, signOut } = useAuthContext();
-  const { openAuthModal, openCommandPalette } = useModals();
+  const { openAuthModal, openCommandPalette, openDbModal } = useModals();
 
   useSwipeNavigation(mainRef);
 
@@ -168,7 +168,11 @@ function AppShellContent({ children }: { children: ReactNode }) {
       </aside>
 
       {/* ── M3 TopAppBar ── */}
-      <Header onOpenAuth={openAuthModal} onOpenSearch={openCommandPalette} />
+      <Header
+        onOpenAuth={openAuthModal}
+        onOpenSearch={openCommandPalette}
+        onOpenDbModal={openDbModal}
+      />
 
       {/* ── Main Viewport ── */}
       <main

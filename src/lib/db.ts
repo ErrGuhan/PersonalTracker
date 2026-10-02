@@ -1,5 +1,5 @@
-// ─── LifeSync OS — Zero-State Clean Data Engine with Supabase User Scoping ─────
 import { supabase } from "./supabase";
+import { canAttemptRemote } from "./dbConnection";
 import type {
   HealthMetric,
   Workout,
@@ -186,14 +186,16 @@ function setLocal<T>(key: string, value: T, userId?: string): T {
 }
 
 export async function getActiveUserId(): Promise<string> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user?.id) {
-      setActiveScopedUserId(user.id);
-      return user.id;
+  if (canAttemptRemote()) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        setActiveScopedUserId(user.id);
+        return user.id;
+      }
+    } catch {
+      // Fallback if not authenticated yet
     }
-  } catch {
-    // Fallback if not authenticated yet
   }
   return getScopedUserId();
 }
@@ -204,38 +206,42 @@ export async function getActiveUserId(): Promise<string> {
 
 export async function getLatestHealthMetrics(): Promise<HealthMetric | null> {
   const userId = await getActiveUserId();
-  try {
-    const { data, error } = await supabase
-      .from("health_metrics")
-      .select("*")
-      .eq("user_id", userId)
-      .order("recorded_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  if (canAttemptRemote()) {
+    try {
+      const { data, error } = await supabase
+        .from("health_metrics")
+        .select("*")
+        .eq("user_id", userId)
+        .order("recorded_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (!error && data) return data as HealthMetric;
-  } catch (err) {
-    console.warn("[DB] health_metrics query fallback to local:", err);
+      if (!error && data) return data as HealthMetric;
+    } catch (err) {
+      console.warn("[DB] health_metrics query fallback to local:", err);
+    }
   }
   return getLocal<HealthMetric | null>("health_metrics", null, userId);
 }
 
 export async function getHealthMetricHistory(days = 7): Promise<HealthMetric[]> {
   const userId = await getActiveUserId();
-  try {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
+  if (canAttemptRemote()) {
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - days);
 
-    const { data, error } = await supabase
-      .from("health_metrics")
-      .select("*")
-      .eq("user_id", userId)
-      .gte("recorded_at", since.toISOString())
-      .order("recorded_at", { ascending: true });
+      const { data, error } = await supabase
+        .from("health_metrics")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("recorded_at", since.toISOString())
+        .order("recorded_at", { ascending: true });
 
-    if (!error && data) return data as HealthMetric[];
-  } catch (err) {
-    console.warn("[DB] health_metrics history fallback to local:", err);
+      if (!error && data) return data as HealthMetric[];
+    } catch (err) {
+      console.warn("[DB] health_metrics history fallback to local:", err);
+    }
   }
   const history = getLocal<HealthMetric[]>("health_metrics_history", [], userId);
   return history;
@@ -291,17 +297,19 @@ export async function upsertHealthMetrics(
 
 export async function getRecentWorkouts(limit = 10): Promise<Workout[]> {
   const userId = await getActiveUserId();
-  try {
-    const { data, error } = await supabase
-      .from("workouts")
-      .select("*")
-      .eq("user_id", userId)
-      .order("workout_date", { ascending: false })
-      .limit(limit);
+  if (canAttemptRemote()) {
+    try {
+      const { data, error } = await supabase
+        .from("workouts")
+        .select("*")
+        .eq("user_id", userId)
+        .order("workout_date", { ascending: false })
+        .limit(limit);
 
-    if (!error && data && data.length > 0) return data as Workout[];
-  } catch (err) {
-    console.warn("[DB] workouts query fallback to local:", err);
+      if (!error && data && data.length > 0) return data as Workout[];
+    } catch (err) {
+      console.warn("[DB] workouts query fallback to local:", err);
+    }
   }
   const list = getLocal("workouts", INITIAL_WORKOUTS);
   return list.slice(0, limit);

@@ -1,18 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuthContext } from "@/context/AuthProvider";
-import { Zap, Search, User as UserIcon, LogOut, ChevronDown } from "lucide-react";
+import { Zap, Search, User as UserIcon, LogOut, ChevronDown, Database } from "lucide-react";
+import { subscribeDbStatus, DbStatusInfo } from "@/lib/dbConnection";
 
 interface HeaderProps {
   onOpenAuth?: () => void;
   onOpenSearch?: () => void;
+  onOpenDbModal?: () => void;
 }
 
-export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
+export default function Header({ onOpenAuth, onOpenSearch, onOpenDbModal }: HeaderProps) {
   const { user, isAuthenticated, signOut } = useAuthContext();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dbStatus, setDbStatus] = useState<DbStatusInfo | null>(null);
+
+  useEffect(() => {
+    return subscribeDbStatus(setDbStatus);
+  }, []);
 
   const userEmail = user?.email;
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "G";
@@ -23,6 +30,8 @@ export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
     month: "short",
     day: "numeric",
   }).format(new Date());
+
+  const isConnected = dbStatus?.status === "connected";
 
   return (
     <header className="m3-top-bar fixed top-0 left-0 lg:left-60 w-full lg:w-[calc(100%-15rem)] z-30 px-4 sm:px-5 py-0">
@@ -44,8 +53,29 @@ export default function Header({ onOpenAuth, onOpenSearch }: HeaderProps) {
           <span className="hidden lg:block text-xs text-slate-400 font-mono">{todayFormatted}</span>
         </div>
 
-        {/* Right — search + auth */}
+        {/* Right — database status + search + auth */}
         <div className="flex items-center gap-2">
+          {/* Database connection indicator */}
+          <button
+            onClick={onOpenDbModal}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer border ${
+              isConnected
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                : "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
+            }`}
+            title="Database Connection & Cloud Sync Settings"
+            aria-label="Database connection status"
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+              }`}
+            />
+            <span className="hidden sm:inline font-mono">
+              {isConnected ? "Cloud Synced" : "Local Mode"}
+            </span>
+          </button>
+
           <button
             onClick={onOpenSearch}
             className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.07] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"

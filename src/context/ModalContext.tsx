@@ -9,6 +9,7 @@ import LogVitalsModal from "@/components/LogVitalsModal";
 import LogNutritionModal from "@/components/LogNutritionModal";
 import CreateGoalModal from "@/components/CreateGoalModal";
 import AuthModal from "@/components/AuthModal";
+import DatabaseModal from "@/components/DatabaseModal";
 import CommandPalette from "@/components/CommandPalette";
 import ToastNotification from "@/components/ToastNotification";
 import { exportAllDataJSON, resetBaselineData } from "@/lib/db";
@@ -22,6 +23,7 @@ export interface ModalContextType {
   openNutritionModal: () => void;
   openGoalModal: () => void;
   openAuthModal: () => void;
+  openDbModal: () => void;
   openCommandPalette: () => void;
   showToast: (message: string) => void;
 }
@@ -37,6 +39,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
   const [showNutritionModal, setShowNutritionModal] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDbModal, setShowDbModal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -52,6 +55,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
   const openNutritionModal = useCallback(() => setShowNutritionModal(true), []);
   const openGoalModal = useCallback(() => setShowGoalModal(true), []);
   const openAuthModal = useCallback(() => setShowAuthModal(true), []);
+  const openDbModal = useCallback(() => setShowDbModal(true), []);
   const openCommandPalette = useCallback(() => setShowCommandPalette(true), []);
 
   const handleExportData = useCallback(() => {
@@ -87,6 +91,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
         openNutritionModal,
         openGoalModal,
         openAuthModal,
+        openDbModal,
         openCommandPalette,
         showToast,
       }}
@@ -116,6 +121,13 @@ export function ModalProvider({ children }: { children: ReactNode }) {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
+        onSuccess={showToast}
+      />
+
+      {/* Database Modal */}
+      <DatabaseModal
+        isOpen={showDbModal}
+        onClose={() => setShowDbModal(false)}
         onSuccess={showToast}
       />
 

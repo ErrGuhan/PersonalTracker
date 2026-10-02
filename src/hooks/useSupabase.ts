@@ -2,6 +2,7 @@
 // ─── LifeSync OS — Supabase & Local DB React Hooks ──────────────────
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { canAttemptRemote } from "@/lib/dbConnection";
 import {
   getLatestHealthMetrics,
   getHealthMetricHistory,
@@ -126,7 +127,7 @@ export function useHealthMetrics() {
     let isMounted = true;
 
     getActiveUserId().then((uid) => {
-      if (!isMounted) return;
+      if (!isMounted || !canAttemptRemote()) return;
       const channelName = `health-realtime-${uid}-${Math.random().toString(36).slice(2, 8)}`;
       channel = supabase
         .channel(channelName)
@@ -182,7 +183,7 @@ export function useRecentWorkouts(limit = 5) {
     let isMounted = true;
 
     getActiveUserId().then((uid) => {
-      if (!isMounted) return;
+      if (!isMounted || !canAttemptRemote()) return;
       const channelName = `workouts-realtime-${uid}-${Math.random().toString(36).slice(2, 8)}`;
       channel = supabase
         .channel(channelName)
@@ -383,7 +384,7 @@ export function useLatestSleep() {
     let isMounted = true;
 
     getActiveUserId().then((uid) => {
-      if (!isMounted) return;
+      if (!isMounted || !canAttemptRemote()) return;
       const channelName = `sleep-realtime-${uid}-${Math.random().toString(36).slice(2, 8)}`;
       channel = supabase
         .channel(channelName)
@@ -572,7 +573,7 @@ export function useGoals() {
     let isMounted = true;
 
     getActiveUserId().then((uid) => {
-      if (!isMounted) return;
+      if (!isMounted || !canAttemptRemote()) return;
       const channelName = `goals-realtime-${uid}-${Math.random().toString(36).slice(2, 8)}`;
       channel = supabase
         .channel(channelName)
