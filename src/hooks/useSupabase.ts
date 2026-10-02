@@ -123,9 +123,13 @@ export function useHealthMetrics() {
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let isMounted = true;
+
     getActiveUserId().then((uid) => {
+      if (!isMounted) return;
+      const channelName = `health-realtime-${uid}-${Math.random().toString(36).slice(2, 8)}`;
       channel = supabase
-        .channel(`health-realtime-${uid}`)
+        .channel(channelName)
         .on(
           "postgres_changes",
           {
@@ -134,12 +138,16 @@ export function useHealthMetrics() {
             table: "health_metrics",
             filter: `user_id=eq.${uid}`,
           },
-          () => { refetch(); }
+          () => { if (isMounted) refetch(); }
         )
         .subscribe();
     });
+
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      isMounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [refetch]);
 
@@ -171,18 +179,26 @@ export function useRecentWorkouts(limit = 5) {
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let isMounted = true;
+
     getActiveUserId().then((uid) => {
+      if (!isMounted) return;
+      const channelName = `workouts-realtime-${uid}-${Math.random().toString(36).slice(2, 8)}`;
       channel = supabase
-        .channel(`workouts-realtime-${uid}`)
+        .channel(channelName)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "workouts", filter: `user_id=eq.${uid}` },
-          () => { refetch(); }
+          () => { if (isMounted) refetch(); }
         )
         .subscribe();
     });
+
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      isMounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [refetch]);
 
@@ -364,18 +380,26 @@ export function useLatestSleep() {
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let isMounted = true;
+
     getActiveUserId().then((uid) => {
+      if (!isMounted) return;
+      const channelName = `sleep-realtime-${uid}-${Math.random().toString(36).slice(2, 8)}`;
       channel = supabase
-        .channel(`sleep-realtime-${uid}`)
+        .channel(channelName)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "sleep_logs", filter: `user_id=eq.${uid}` },
-          () => { refetch(); }
+          () => { if (isMounted) refetch(); }
         )
         .subscribe();
     });
+
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      isMounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [refetch]);
 
@@ -545,18 +569,26 @@ export function useGoals() {
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let isMounted = true;
+
     getActiveUserId().then((uid) => {
+      if (!isMounted) return;
+      const channelName = `goals-realtime-${uid}-${Math.random().toString(36).slice(2, 8)}`;
       channel = supabase
-        .channel(`goals-realtime-${uid}`)
+        .channel(channelName)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "goals", filter: `user_id=eq.${uid}` },
-          () => { fetchGoals(); }
+          () => { if (isMounted) fetchGoals(); }
         )
         .subscribe();
     });
+
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      isMounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [fetchGoals]);
 
