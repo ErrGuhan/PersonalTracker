@@ -7,7 +7,7 @@ export default function HealthView() {
   const { openSleepModal, openVitalsModal, showToast } = useModals();
 
   return (
-    <div className="w-full pb-32 lg:pb-16">
+    <div className="w-full pt-3 pb-24 lg:pb-8">
       <HealthIntelligenceCenter
         onOpenSleepModal={openSleepModal}
         onOpenVitalsModal={openVitalsModal}

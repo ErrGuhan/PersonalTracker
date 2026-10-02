@@ -1,146 +1,95 @@
 "use client";
 
-import { motion, type Variants } from "framer-motion";
 import HydrationWidget from "@/components/HydrationWidget";
 import EmptyState from "@/components/EmptyState";
 import { useModals } from "@/context/ModalContext";
 import { useNutrition } from "@/hooks/useSupabase";
-import { PieChart, Utensils, Plus, Sparkles } from "lucide-react";
-
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.05 },
-  },
-};
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.98, y: 10 },
-  show: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { type: "spring", stiffness: 350, damping: 26 },
-  },
-};
+import { Utensils, Plus } from "lucide-react";
 
 export default function NutritionView() {
   const { openNutritionModal } = useModals();
   const { meals, stats } = useNutrition();
 
+  const macros = [
+    { label: "kcal",    value: stats.totalCalories, color: "text-amber-300",  pct: Math.min((stats.totalCalories / 2200) * 100, 100), bar: "m3-progress-bar-orange" },
+    { label: "Protein", value: `${stats.totalProtein}g`, color: "text-cyan-400", pct: Math.min((stats.totalProtein / 160) * 100, 100),  bar: "m3-progress-bar" },
+    { label: "Carbs",   value: `${stats.totalCarbs}g`,  color: "text-violet-300", pct: Math.min((stats.totalCarbs / 250) * 100, 100),   bar: "m3-progress-bar-violet" },
+    { label: "Fats",    value: `${stats.totalFats}g`,   color: "text-amber-400", pct: Math.min((stats.totalFats / 70) * 100, 100),     bar: "m3-progress-bar-orange" },
+  ];
+
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="flex flex-col gap-6 w-full pb-28 lg:pb-12"
-    >
-      {/* Page Header */}
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
+    <div className="flex flex-col gap-5 w-full pt-3">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/20">
-              Fuel & Hydration
-            </span>
+            <span className="m3-chip m3-chip-orange m3-chip-selected text-[10px]">Fuel</span>
           </div>
-          <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">Hydration & Fuel</h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">Fuel your body with hydration & balanced nutrition.</p>
+          <h2 className="text-xl font-extrabold text-white tracking-tight">Hydration & Fuel</h2>
         </div>
-        <button
-          onClick={openNutritionModal}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(236,106,6,0.35)] hover:brightness-110 active:scale-95 transition cursor-pointer"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Log Meal</span>
+        <button onClick={openNutritionModal} className="m3-fab m3-fab-small m3-fab-orange">
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+          Log Meal
         </button>
-      </motion.div>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-6">
-          <HydrationWidget />
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Hydration */}
+        <HydrationWidget />
 
-        <div className="lg:col-span-6 liquid-glass rounded-3xl p-5 sm:p-6 flex flex-col justify-between border border-white/[0.08] shadow-2xl">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-base text-white tracking-tight flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-amber-400" />
-                <span>Daily Macro Totals</span>
-              </h3>
-              <span className="font-mono text-xs text-amber-300 font-bold bg-amber-500/15 px-2.5 py-1 rounded-full border border-amber-500/25">
-                Today&apos;s Intake
-              </span>
-            </div>
-
-            {/* Macro Metrics Grid */}
-            <div className="grid grid-cols-4 gap-2.5 my-4">
-              <div className="liquid-glass-subtle p-3 rounded-2xl border border-white/[0.06] text-center">
-                <span className="text-lg sm:text-2xl font-black text-amber-300 font-mono tracking-tight">{stats.totalCalories}</span>
-                <span className="block text-[9.5px] uppercase tracking-wider text-slate-400 font-mono mt-0.5">KCAL</span>
-              </div>
-              <div className="liquid-glass-subtle p-3 rounded-2xl border border-white/[0.06] text-center">
-                <span className="text-lg sm:text-2xl font-black text-cyan-400 font-mono tracking-tight">{stats.totalProtein}g</span>
-                <span className="block text-[9.5px] uppercase tracking-wider text-slate-400 font-mono mt-0.5">PROTEIN</span>
-              </div>
-              <div className="liquid-glass-subtle p-3 rounded-2xl border border-white/[0.06] text-center">
-                <span className="text-lg sm:text-2xl font-black text-purple-300 font-mono tracking-tight">{stats.totalCarbs}g</span>
-                <span className="block text-[9.5px] uppercase tracking-wider text-slate-400 font-mono mt-0.5">CARBS</span>
-              </div>
-              <div className="liquid-glass-subtle p-3 rounded-2xl border border-white/[0.06] text-center">
-                <span className="text-lg sm:text-2xl font-black text-amber-400 font-mono tracking-tight">{stats.totalFats}g</span>
-                <span className="block text-[9.5px] uppercase tracking-wider text-slate-400 font-mono mt-0.5">FATS</span>
-              </div>
-            </div>
+        {/* Macros */}
+        <section className="m3-surface-glass rounded-2xl p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-sm text-white">Today's Macros</h3>
+            <span className="m3-chip m3-chip-orange text-[10px]">Live</span>
           </div>
 
-          {/* Staggered Logged Meals List */}
-          <div className="space-y-2.5 mt-4 pt-4 border-t border-white/[0.06]">
-            <h4 className="font-mono text-[10px] uppercase tracking-widest text-slate-400 font-bold">Logged Meals</h4>
+          <div className="space-y-3">
+            {macros.map(({ label, value, color, pct, bar }) => (
+              <div key={label} className="flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-[11px] text-slate-400 font-mono uppercase tracking-wider">{label}</span>
+                  <span className={`text-sm font-bold font-mono ${color}`}>{value}</span>
+                </div>
+                <div className="m3-progress-track">
+                  <div className={`${bar} h-full rounded-sm`} style={{ width: `${pct}%`, height: "4px", borderRadius: "2px", transition: "width 0.6s cubic-bezier(0.2,0,0,1)" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Meal log */}
+          <div className="mt-4 pt-4 border-t border-white/[0.06]">
+            <h4 className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-2">Logged</h4>
             {meals.length === 0 ? (
               <EmptyState
                 icon={Utensils}
-                title="No Meals Logged Today"
-                description="Fuel your body with intention. Log your meals to track calories, protein, carbs, and fats."
-                actionLabel="Log First Meal"
+                title="No Meals Logged"
+                description="Log your meals to track macros."
+                actionLabel="Log Meal"
                 onAction={openNutritionModal}
               />
             ) : (
-              <motion.div
-                variants={{
-                  hidden: { opacity: 0 },
-                  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
-                }}
-                initial="hidden"
-                animate="show"
-                className="space-y-2 max-h-56 overflow-y-auto pr-1 no-scrollbar"
-              >
-                {meals.map((m) => (
-                  <motion.div
-                    key={m.id}
-                    variants={{
-                      hidden: { opacity: 0, y: 6 },
-                      show: { opacity: 1, y: 0 },
-                    }}
-                    className="flex justify-between items-center p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.05] text-xs transition"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
-                        <Utensils className="w-3.5 h-3.5" />
+              <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+                {meals.map(m => (
+                  <li key={m.id} className="flex justify-between items-center p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05] text-xs hover:bg-white/[0.05] transition">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-amber-500/12 flex items-center justify-center text-amber-400">
+                        <Utensils className="w-3 h-3" />
                       </div>
-                      <span className="font-bold text-white capitalize text-xs sm:text-sm">{m.name}</span>
-                      <span className="text-[10px] text-slate-400 font-mono uppercase bg-white/[0.04] px-2 py-0.5 rounded border border-white/[0.08]">
-                        {m.mealType}
-                      </span>
+                      <span className="font-semibold text-white capitalize">{m.name}</span>
+                      <span className="text-[9px] text-slate-400 font-mono uppercase bg-white/[0.04] px-1.5 py-0.5 rounded">{m.mealType}</span>
                     </div>
-                    <span className="font-mono font-extrabold text-amber-400 text-xs">{m.calories} kcal</span>
-                  </motion.div>
+                    <span className="font-bold text-amber-400 font-mono">{m.calories}kcal</span>
+                  </li>
                 ))}
-              </motion.div>
+              </ul>
             )}
           </div>
-        </div>
+        </section>
       </div>
-    </motion.div>
+
+    </div>
   );
 }

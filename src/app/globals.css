@@ -1,319 +1,624 @@
 @import "tailwindcss";
 
 /* ============================================================
-   LifeSync OS — Design System Tokens & Keyframe Animations
+   LifeSync OS — Material Design 3 (Ion) Design System
+   Surface tonal elevation · Ion components · Clean tokens
    ============================================================ */
 
 @theme inline {
-  /* Colors */
+  /* ── M3 Color Roles ── */
+  --color-background:                 #0a0e16;
+  --color-surface-dim:                #0f131c;
+  --color-surface:                    #1c2028;
+  --color-surface-container-lowest:   #0a0e16;
+  --color-surface-container-low:      #181c24;
+  --color-surface-container:          #1c2028;
+  --color-surface-container-high:     #262a33;
+  --color-surface-container-highest:  #31353e;
+  --color-surface-bright:             #353942;
+  --color-on-surface:                 #dfe2ee;
+  --color-on-surface-variant:         #94a3b8;
+  --color-outline:                    #475569;
+  --color-outline-variant:            #334155;
+
+  /* Primary — Cyan */
+  --color-primary:                    #4cd7f6;
+  --color-primary-container:          #06b6d4;
+  --color-on-primary:                 #003640;
+  --color-on-primary-container:       #acedff;
+
+  /* Secondary — Orange */
+  --color-secondary:                  #ffb690;
+  --color-secondary-container:        #ec6a06;
+  --color-on-secondary:               #552100;
+  --color-on-secondary-container:     #ffdbca;
+
+  /* Tertiary — Violet */
+  --color-tertiary:                   #d0bcff;
+  --color-tertiary-container:         #b395ff;
+  --color-on-tertiary:                #3c0091;
+  --color-on-tertiary-container:      #e9ddff;
+
+  /* Error */
   --color-error:                      #ffb4ab;
   --color-error-container:            #93000a;
-  --color-on-error-container:         #ffdad6;
-  --color-surface-dim:                #0f131c;
-  --color-on-tertiary-fixed-variant:  #5516be;
-  --color-inverse-on-surface:         #2c3039;
-  --color-surface-bright:             #353942;
-  --color-primary-fixed:              #acedff;
-  --color-primary:                    #4cd7f6;
-  --color-on-tertiary-container:      #4900ae;
-  --color-tertiary-container:         #b395ff;
-  --color-surface:                    #0f131c;
-  --color-surface-container-lowest:   #0a0e16;
-  --color-surface-container-highest:  #31353e;
-  --color-on-primary-container:       #00424f;
-  --color-surface-container-high:     #262a33;
-  --color-on-secondary:               #552100;
-  --color-on-primary-fixed-variant:   #004e5c;
-  --color-tertiary:                   #d0bcff;
-  --color-surface-container:          #1c2028;
-  --color-secondary:                  #ffb690;
-  --color-background:                 #0f131c;
-  --color-surface-variant:            #31353e;
-  --color-on-primary-fixed:           #001f26;
-  --color-outline:                    #869397;
-  --color-on-secondary-fixed-variant: #783200;
-  --color-on-tertiary:                #3c0091;
-  --color-surface-tint:               #4cd7f6;
-  --color-on-background:              #dfe2ee;
-  --color-primary-fixed-dim:          #4cd7f6;
-  --color-inverse-primary:            #00687a;
-  --color-tertiary-fixed:             #e9ddff;
-  --color-on-tertiary-fixed:          #23005c;
-  --color-secondary-fixed-dim:        #ffb690;
-  --color-secondary-fixed:            #ffdbca;
-  --color-on-secondary-fixed:         #341100;
-  --color-on-surface:                 #dfe2ee;
-  --color-on-surface-variant:         #bcc9cd;
-  --color-surface-container-low:      #181c24;
-  --color-secondary-container:        #ec6a06;
-  --color-on-error:                   #690005;
-  --color-on-secondary-container:     #4a1c00;
-  --color-on-primary:                 #003640;
-  --color-tertiary-fixed-dim:         #d0bcff;
-  --color-outline-variant:            #3d494c;
-  --color-primary-container:          #06b6d4;
-  --color-inverse-surface:            #dfe2ee;
 
   /* Typography */
   --font-inter:                       var(--font-inter, 'Inter', sans-serif);
-  --font-geist:                       'Geist', 'Geist Mono', ui-monospace, monospace;
+  --font-geist:                       'Geist', ui-monospace, monospace;
 }
 
-/* Base resets */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-img, svg, video, canvas, iframe {
-  max-width: 100%;
-}
-
-html {
-  scroll-behavior: smooth;
+/* ── Base Reset ── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  img, svg, video, canvas {
+    max-width: 100%;
+    display: block;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 html, body {
-  background-color: #0f131c;
+  background-color: #0a0e16;
   color: #dfe2ee;
   height: 100dvh;
   width: 100vw;
   overscroll-behavior-y: none;
   touch-action: pan-x pan-y;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Glassmorphism utility classes — Weightless Frosted Glass */
-.glass-panel {
-  background: rgba(18, 24, 38, 0.6);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  will-change: transform, opacity;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+/* ── Scrollbar — hidden for clean glass aesthetic ── */
+::-webkit-scrollbar { display: none; }
+* { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ============================================================
+   M3 ION SURFACE SYSTEM
+   Tonal elevation via background color, no shadows
+   ============================================================ */
+
+/* L1 — Page background */
+.m3-background {
+  background-color: #0a0e16;
 }
 
-.glass-panel:hover {
-  border-color: rgba(76, 215, 246, 0.25);
+/* L2 — Standard card/panel */
+.m3-surface {
+  background-color: #1c2028;
+  border-radius: 16px;
 }
 
-.glass-panel-glow {
-  box-shadow: 0 0 24px rgba(76, 215, 246, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+/* L2 + glass — Primary card style */
+.m3-surface-glass {
+  background: rgba(28, 32, 40, 0.7);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
 }
 
-/* Liquid Glass System (vibe-coding-visuals) */
-.liquid-glass {
-  background: rgba(18, 24, 38, 0.65);
+/* L3 — Elevated card */
+.m3-surface-high {
+  background-color: #262a33;
+  border-radius: 16px;
+}
+
+/* L3 + glass — Elevated panel */
+.m3-surface-high-glass {
+  background: rgba(38, 42, 51, 0.8);
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.09);
-  transition: border-color 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  border-radius: 16px;
 }
 
-.liquid-glass-subtle {
-  background: rgba(14, 19, 30, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+/* Modal overlay surface */
+.m3-surface-modal {
+  background: rgba(24, 28, 36, 0.95);
+  backdrop-filter: blur(32px) saturate(150%);
+  -webkit-backdrop-filter: blur(32px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
 }
 
-.liquid-glass-interactive {
+/* Subtle inset for nested content */
+.m3-surface-inset {
+  background: rgba(10, 14, 22, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+}
+
+/* ============================================================
+   M3 ION INTERACTION STATES
+   ============================================================ */
+
+.m3-interactive {
   cursor: pointer;
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, box-shadow 0.18s ease;
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1),
+              background-color 0.15s ease,
+              border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.liquid-glass-interactive:hover {
-  transform: translateY(-2px);
-  border-color: rgba(76, 215, 246, 0.35);
-  box-shadow: 0 16px 44px -8px rgba(0, 0, 0, 0.6), 0 0 20px rgba(76, 215, 246, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+.m3-interactive:hover {
+  transform: translateY(-1px);
 }
 
-.liquid-glass-interactive:active {
-  transform: scale(0.98);
+.m3-interactive:active {
+  transform: scale(0.97);
 }
 
-/* Ambient Deep Space Mesh Background */
-.ambient-mesh {
-  background-color: #0a0e16;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(76, 215, 246, 0.07) 0px, transparent 45%),
-    radial-gradient(at 100% 0%, rgba(208, 188, 255, 0.06) 0px, transparent 45%),
-    radial-gradient(at 50% 100%, rgba(255, 182, 144, 0.05) 0px, transparent 45%);
+/* State layer (M3 ripple approximation) */
+.m3-state-layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0);
+  transition: background 0.15s ease;
 }
 
-/* Text Gradient Helpers */
-.text-gradient-cyan {
-  background: linear-gradient(135deg, #ffffff 0%, #4cd7f6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.m3-state-layer:hover::after {
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.text-gradient-orange {
-  background: linear-gradient(135deg, #ffffff 0%, #ffb690 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.m3-state-layer:active::after {
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.text-gradient-violet {
-  background: linear-gradient(135deg, #ffffff 0%, #d0bcff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+/* ============================================================
+   M3 ION CHIPS
+   Assist · Filter · Input · Suggestion
+   ============================================================ */
+
+.m3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(28, 32, 40, 0.6);
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Custom Heatmap Levels */
-.heat-level-0 { background-color: rgba(255, 255, 255, 0.05); }
-.heat-level-1 { background-color: rgba(236, 106, 6, 0.25); border: 1px solid rgba(236, 106, 6, 0.4); }
-.heat-level-2 { background-color: rgba(236, 106, 6, 0.50); border: 1px solid rgba(236, 106, 6, 0.7); box-shadow: 0 0 8px rgba(236, 106, 6, 0.3); }
-.heat-level-3 { background-color: rgba(236, 106, 6, 0.75); border: 1px solid rgba(236, 106, 6, 0.9); box-shadow: 0 0 12px rgba(236, 106, 6, 0.5); }
-.heat-level-4 { background-color: #ffb690; border: 1px solid #ffffff; box-shadow: 0 0 15px rgba(255, 182, 144, 0.8); }
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   OPTIMIZED ANIMATION SYSTEM
-   Principle: Animate user attention, not the entire interface.
-   GPU-safe: Only transform + opacity. No filter, box-shadow, or width/height.
-   ───────────────────────────────────────────────────────────────────────────── */
-
-/* Removed: breathing-cyan / breathing-orange (continuous scale+opacity on large blur divs)  */
-/* Removed: pulse-ring (continuous box-shadow animation)                                       */
-/* Removed: flow-gradient / flow-gradient-orange / flow-gradient-violet (hue-rotate filter)   */
-/* These were the primary GPU bottlenecks — replaced with static glows below.                 */
-
-/* Static ambient glow elements — GPU-free, no animation needed */
-.glow-cyan-active {
-  opacity: 0.6;
-  will-change: auto;
+.swipe-container {
+  padding-bottom: 96px !important;
 }
 
-.glow-orange-active {
-  opacity: 0.6;
-  will-change: auto;
+@media (min-width: 1024px) {
+  .swipe-container {
+    padding-bottom: 32px !important;
+  }
 }
 
-/* Static center badge — no animated box-shadow */
-.pulse-center {
-  box-shadow: 0 0 0 1px rgba(76, 215, 246, 0.2), inset 0 0 20px rgba(76, 215, 246, 0.08);
+.m3-chip:hover {
+  background: rgba(76, 215, 246, 0.08);
+  border-color: rgba(76, 215, 246, 0.25);
+  color: #dfe2ee;
 }
 
-/* SVG ring arcs — static colored strokes; data drives strokeDashoffset via CSS transition */
-.circular-progress {
-  transform: rotate(-90deg);
-  transform-origin: 50% 50%;
-  will-change: transform;
-}
-
-/* Data-driven ring transitions — only update when underlying data value changes */
-.living-ring-cyan {
-  stroke: #4cd7f6;
-  transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.living-ring-orange {
-  stroke: #ec6a06;
-  transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.living-ring-violet {
-  stroke: #b395ff;
-  transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Tactile button press — pure CSS, no JS required */
-.tactile-click {
-  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform;
-}
-.tactile-click:active {
+.m3-chip:active {
   transform: scale(0.96);
 }
 
-/* Deprecated: tilt-card (3D perspective hover) — replaced with flat CSS hover */
-.tilt-card {
-  transition: transform 0.15s ease-out;
+.m3-chip-selected {
+  background: rgba(76, 215, 246, 0.15);
+  border-color: rgba(76, 215, 246, 0.4);
+  color: #4cd7f6;
 }
 
-/* Globally hide scrollbars to preserve weightless glassmorphism UI */
-::-webkit-scrollbar {
-  display: none;
+.m3-chip-orange {
+  border-color: rgba(255, 182, 144, 0.2);
+}
+.m3-chip-orange:hover, .m3-chip-orange.m3-chip-selected {
+  background: rgba(255, 182, 144, 0.12);
+  border-color: rgba(255, 182, 144, 0.4);
+  color: #ffb690;
 }
 
-* {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.m3-chip-violet {
+  border-color: rgba(208, 188, 255, 0.2);
+}
+.m3-chip-violet:hover, .m3-chip-violet.m3-chip-selected {
+  background: rgba(208, 188, 255, 0.12);
+  border-color: rgba(208, 188, 255, 0.4);
+  color: #d0bcff;
 }
 
-/* Page entrance — fast, subtle, GPU-only (opacity + translateY) */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
+/* ============================================================
+   M3 ION FAB (Floating Action Button)
+   ============================================================ */
+
+.m3-fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #06b6d4, #4cd7f6);
+  color: #003640;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 20px rgba(76, 215, 246, 0.25);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m3-fab:hover {
+  box-shadow: 0 0 32px rgba(76, 215, 246, 0.4);
+  transform: translateY(-2px);
+}
+
+.m3-fab:active {
+  transform: scale(0.96);
+}
+
+.m3-fab-small {
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.m3-fab-orange {
+  background: linear-gradient(135deg, #ec6a06, #ffb690);
+  color: #552100;
+  box-shadow: 0 0 20px rgba(236, 106, 6, 0.25);
+}
+.m3-fab-orange:hover { box-shadow: 0 0 32px rgba(236, 106, 6, 0.4); }
+
+.m3-fab-violet {
+  background: linear-gradient(135deg, #5516be, #d0bcff);
+  color: #23005c;
+  box-shadow: 0 0 20px rgba(179, 149, 255, 0.25);
+}
+.m3-fab-violet:hover { box-shadow: 0 0 32px rgba(179, 149, 255, 0.4); }
+
+/* ============================================================
+   M3 ION PROGRESS INDICATORS
+   ============================================================ */
+
+/* Linear progress bar */
+.m3-progress-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.m3-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  background: #4cd7f6;
+  transition: width 0.6s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.m3-progress-bar-orange { background: #ffb690; }
+.m3-progress-bar-violet { background: #d0bcff; }
+.m3-progress-bar-emerald { background: #34d399; }
+
+/* Circular ring (SVG-based, data-driven) */
+.m3-ring {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.m3-ring-cyan   { stroke: #4cd7f6; transition: stroke-dashoffset 0.7s cubic-bezier(0.2, 0, 0, 1); }
+.m3-ring-orange { stroke: #ec6a06; transition: stroke-dashoffset 0.7s cubic-bezier(0.2, 0, 0, 1); }
+.m3-ring-violet { stroke: #b395ff; transition: stroke-dashoffset 0.7s cubic-bezier(0.2, 0, 0, 1); }
+.m3-ring-track  { stroke: rgba(255, 255, 255, 0.07); }
+
+/* ============================================================
+   M3 ION NAVIGATION
+   ============================================================ */
+
+/* NavigationDrawer (desktop sidebar) */
+.m3-nav-drawer {
+  background: rgba(14, 18, 28, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* NavigationBar (mobile bottom bar) */
+.m3-nav-bar {
+  background: rgba(18, 22, 32, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Nav destination (M3 specification) */
+.m3-nav-dest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  color: #94a3b8;
+}
+
+.m3-nav-dest-active {
+  color: #4cd7f6;
+}
+
+/* M3 active indicator pill */
+.m3-nav-indicator {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 64px;
+  height: 32px;
+  border-radius: 16px;
+  background: rgba(76, 215, 246, 0.15);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Sidebar nav item */
+.m3-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 28px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 13px;
+  font-weight: 500;
+  color: #94a3b8;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m3-nav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #dfe2ee;
+}
+
+.m3-nav-item-active {
+  background: rgba(76, 215, 246, 0.12);
+  color: #4cd7f6;
+  font-weight: 600;
+}
+
+/* ============================================================
+   M3 ION TOP APP BAR
+   ============================================================ */
+
+.m3-top-bar {
+  background: rgba(10, 14, 22, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================================
+   KPI TILES — Ion metric display
+   ============================================================ */
+
+.ion-kpi-tile {
+  background: rgba(28, 32, 40, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ion-kpi-tile:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================
+   AMBIENT BACKGROUND MESH
+   ============================================================ */
+
+.ion-ambient {
+  background-color: #0a0e16;
+  background-image:
+    radial-gradient(at 5% 5%,   rgba(76, 215, 246, 0.06) 0px, transparent 50%),
+    radial-gradient(at 95% 5%,  rgba(208, 188, 255, 0.05) 0px, transparent 50%),
+    radial-gradient(at 50% 95%, rgba(255, 182, 144, 0.04) 0px, transparent 50%);
+}
+
+/* ============================================================
+   HEATMAP CELLS
+   ============================================================ */
+
+.heat-0 { background: rgba(255, 255, 255, 0.04); }
+.heat-1 { background: rgba(76, 215, 246, 0.2);   border: 1px solid rgba(76, 215, 246, 0.3); }
+.heat-2 { background: rgba(76, 215, 246, 0.45);  border: 1px solid rgba(76, 215, 246, 0.6); }
+.heat-3 { background: rgba(76, 215, 246, 0.75);  border: 1px solid rgba(76, 215, 246, 0.9); }
+.heat-4 { background: #4cd7f6; }
+
+.heat-orange-0 { background: rgba(255, 255, 255, 0.04); }
+.heat-orange-1 { background: rgba(236, 106, 6, 0.2);  border: 1px solid rgba(236, 106, 6, 0.3); }
+.heat-orange-2 { background: rgba(236, 106, 6, 0.45); border: 1px solid rgba(236, 106, 6, 0.6); }
+.heat-orange-3 { background: rgba(236, 106, 6, 0.75); border: 1px solid rgba(236, 106, 6, 0.9); }
+.heat-orange-4 { background: #ffb690; }
+
+/* ============================================================
+   SKELETON LOADING
+   ============================================================ */
+
+@keyframes ion-shimmer {
+  0%   { opacity: 0.3; }
+  50%  { opacity: 0.6; }
+  100% { opacity: 0.3; }
+}
+
+.ion-skeleton {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  animation: ion-shimmer 1.5s ease-in-out infinite;
+}
+
+/* ============================================================
+   PAGE TRANSITIONS
+   ============================================================ */
+
+@keyframes ion-fadein {
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+.ion-fadein {
+  animation: ion-fadein 0.2s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
-/* Modal entrance — bottom-sheet on mobile, fade+slide on desktop */
-@keyframes modalSlideUp {
-  from { opacity: 0; transform: translateY(12px); }
+/* Modal slide-up */
+@keyframes ion-modal-up {
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes modalSlideUpMobile {
+@keyframes ion-modal-up-mobile {
   from { opacity: 0; transform: translateY(100%); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.modal-enter {
-  animation: modalSlideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+.ion-modal-enter {
+  animation: ion-modal-up 0.2s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 @media (max-width: 639px) {
-  .modal-enter {
-    animation: modalSlideUpMobile 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  .ion-modal-enter {
+    animation: ion-modal-up-mobile 0.25s cubic-bezier(0.2, 0, 0, 1) both;
   }
 }
 
-/* Swipe drag visual feedback — controlled via CSS custom property, no React state */
+/* ============================================================
+   SWIPE CONTAINER
+   ============================================================ */
+
 .swipe-container {
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1);
   will-change: transform;
 }
+.swipe-container.is-dragging { transition: none; }
 
-.swipe-container.is-dragging {
-  transition: none; /* Raw follow during drag */
+/* ============================================================
+   TEXT GRADIENT HELPERS
+   ============================================================ */
+
+.text-grad-cyan {
+  background: linear-gradient(135deg, #ffffff 0%, #4cd7f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.text-grad-orange {
+  background: linear-gradient(135deg, #ffffff 0%, #ffb690 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.text-grad-violet {
+  background: linear-gradient(135deg, #ffffff 0%, #d0bcff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Shimmer skeleton — single CSS animation, no Framer Motion overhead */
-@keyframes shimmer {
-  0%   { opacity: 0.4; }
-  50%  { opacity: 0.75; }
-  100% { opacity: 0.4; }
+/* ============================================================
+   MOOD SELECTOR
+   ============================================================ */
+
+.mood-item {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(28, 32, 40, 0.6);
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
-.skeleton-shimmer {
-  animation: shimmer 1.4s ease-in-out infinite;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 0.5rem;
+.mood-item:hover {
+  background: rgba(76, 215, 246, 0.08);
+  border-color: rgba(76, 215, 246, 0.2);
+  transform: scale(1.08);
 }
 
-/* Prefers Reduced Motion — respect user accessibility settings */
+.mood-item:active {
+  transform: scale(0.94);
+}
+
+.mood-item.selected {
+  background: rgba(76, 215, 246, 0.15);
+  border-color: rgba(76, 215, 246, 0.4);
+  transform: scale(1.06);
+  box-shadow: 0 0 12px rgba(76, 215, 246, 0.25);
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-
-  .animate-fadeIn,
-  .modal-enter {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-
-  .living-ring-cyan,
-  .living-ring-orange,
-  .living-ring-violet {
-    transition: none;
-  }
 }
+
+/* ============================================================
+   BACKWARD COMPAT — legacy class aliases
+   (keeps existing modal/component code working)
+   ============================================================ */
+.liquid-glass           { background: rgba(28, 32, 40, 0.7); backdrop-filter: blur(20px) saturate(130%); -webkit-backdrop-filter: blur(20px) saturate(130%); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; }
+.liquid-glass-subtle    { background: rgba(14, 19, 30, 0.45); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; }
+.liquid-glass-interactive { cursor: pointer; transition: transform 0.15s cubic-bezier(0.2,0,0,1), border-color 0.15s ease; }
+.liquid-glass-interactive:hover { transform: translateY(-2px); border-color: rgba(76,215,246,0.3); }
+.liquid-glass-interactive:active { transform: scale(0.97); }
+.glass-panel            { background: rgba(18,24,38,0.6); backdrop-filter: blur(20px) saturate(140%); -webkit-backdrop-filter: blur(20px) saturate(140%); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; }
+.glass-card             { background: rgba(28,32,40,0.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; }
+.circular-progress      { transform: rotate(-90deg); transform-origin: 50% 50%; }
+.living-ring-cyan       { stroke: #4cd7f6; transition: stroke-dashoffset 0.8s cubic-bezier(0.2,0,0,1); }
+.living-ring-orange     { stroke: #ec6a06; transition: stroke-dashoffset 0.8s cubic-bezier(0.2,0,0,1); }
+.living-ring-violet     { stroke: #b395ff; transition: stroke-dashoffset 0.8s cubic-bezier(0.2,0,0,1); }
+.animate-fadeIn         { animation: ion-fadein 0.2s cubic-bezier(0.2,0,0,1) both; }
+.modal-enter            { animation: ion-modal-up 0.2s cubic-bezier(0.2,0,0,1) both; }
+.skeleton-shimmer       { animation: ion-shimmer 1.5s ease-in-out infinite; background: rgba(255,255,255,0.1); border-radius: 8px; }
+.badge-live             { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: rgba(76,215,246,0.15); border: 1px solid rgba(76,215,246,0.3); color: #4cd7f6; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; }
+.label-caps             { font-family: 'Geist', ui-monospace, monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #94a3b8; }
+.nav-pill               { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #94a3b8; cursor: pointer; transition: all 0.15s ease; border: none; background: transparent; width: 100%; }
+.nav-pill:hover         { background: rgba(255,255,255,0.04); color: #dfe2ee; }
+.nav-pill.active        { background: rgba(76,215,246,0.12); color: #4cd7f6; font-weight: 600; }
+.heat-level-0           { background-color: rgba(255,255,255,0.05); }
+.heat-level-1           { background-color: rgba(236,106,6,0.25); border: 1px solid rgba(236,106,6,0.4); }
+.heat-level-2           { background-color: rgba(236,106,6,0.50); border: 1px solid rgba(236,106,6,0.7); }
+.heat-level-3           { background-color: rgba(236,106,6,0.75); border: 1px solid rgba(236,106,6,0.9); }
+.heat-level-4           { background-color: #ffb690; border: 1px solid #ffffff; }
+.ambient-mesh           { background-color: #0a0e16; }
+.tactile-click          { transition: transform 0.1s ease; }
+.tactile-click:active   { transform: scale(0.96); }
+@media (max-width: 639px) { .modal-enter { animation: ion-modal-up-mobile 0.25s cubic-bezier(0.2,0,0,1) both; } }

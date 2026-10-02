@@ -1,19 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { useHydration } from "@/hooks/useSupabase";
-import { Droplet, Plus } from "lucide-react";
+import { Droplet } from "lucide-react";
+
+const QUICK_ADDS = [
+  { ml: 250, label: "Glass" },
+  { ml: 500, label: "Bottle" },
+  { ml: 750, label: "Flask" },
+];
 
 export default function HydrationWidget() {
   const { hydration, addWater } = useHydration();
   const [isAdding, setIsAdding] = useState(false);
 
-  // Calculate actual percentage
-  const pct = hydration.targetMl > 0 ? Math.round((hydration.amountMl / hydration.targetMl) * 100) : 0;
-  const barWidthPct = Math.min(100, Math.max(0, pct));
+  const pct        = hydration.targetMl > 0 ? Math.round((hydration.amountMl / hydration.targetMl) * 100) : 0;
+  const barWidth   = Math.min(100, Math.max(0, pct));
 
-  const handleAddWater = (amount: number) => {
+  const handleAdd = (amount: number) => {
     if (isAdding) return;
     setIsAdding(true);
     addWater(amount);
@@ -21,75 +25,49 @@ export default function HydrationWidget() {
   };
 
   return (
-    <div className="liquid-glass rounded-3xl p-5 sm:p-6 flex flex-col justify-between h-full relative overflow-hidden border border-white/[0.08] shadow-2xl">
-      {/* Background Ambient Fluid Glow */}
-      <div className="absolute -top-12 -right-12 w-40 h-40 bg-cyan-500/[0.08] rounded-full blur-3xl pointer-events-none" />
+    <div className="m3-surface-glass rounded-2xl p-4 flex flex-col gap-4 h-full relative overflow-hidden">
+      {/* Ambient */}
+      <div className="absolute -top-8 -right-8 w-32 h-32 bg-cyan-500/[0.06] rounded-full blur-3xl pointer-events-none" />
 
-      <div>
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.25)]">
-              <Droplet className="w-4 h-4 fill-cyan-400/30" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm sm:text-base text-white tracking-tight">Hydration Tracker</h3>
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-mono">Daily Fluid Intake</p>
-            </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+            <Droplet className="w-3.5 h-3.5 fill-cyan-400/30" />
           </div>
-
-          <span className="font-mono text-[11px] text-cyan-300 font-bold bg-cyan-500/15 px-2.5 py-1 rounded-full border border-cyan-500/25 shadow-[0_0_10px_rgba(6,182,212,0.15)]">
-            {pct}% Reached
-          </span>
+          <h3 className="font-semibold text-sm text-white">Hydration</h3>
         </div>
-
-        {/* Counter Display */}
-        <div className="flex items-baseline gap-2 my-3">
-          <span className="text-3xl sm:text-4xl font-black tracking-tight text-white font-mono">{hydration.amountMl}</span>
-          <span className="text-xs text-slate-400 font-mono uppercase tracking-wider">/ {hydration.targetMl} ML</span>
-        </div>
-
-        {/* Fluid Progress Bar */}
-        <div className="w-full bg-black/40 h-3 rounded-full overflow-hidden my-4 p-0.5 border border-white/[0.06]">
-          <motion.div
-            className="bg-gradient-to-r from-cyan-500 via-teal-400 to-blue-500 h-full rounded-full shadow-[0_0_12px_rgba(6,182,212,0.5)]"
-            initial={{ width: 0 }}
-            animate={{ width: `${barWidthPct}%` }}
-            transition={{ type: "spring", stiffness: 100, damping: 20 }}
-          />
-        </div>
+        <span className="m3-chip m3-chip-selected text-[10px]">{pct}%</span>
       </div>
 
-      {/* Tactile Quick Add Buttons */}
-      <div className="grid grid-cols-3 gap-2.5 mt-3 pt-3 border-t border-white/[0.06]">
-        <button
-          type="button"
-          disabled={isAdding}
-          onClick={() => handleAddWater(250)}
-          className="liquid-glass-subtle hover:bg-cyan-500/10 active:scale-95 border border-white/[0.06] hover:border-cyan-500/30 rounded-xl p-2.5 flex flex-col items-center justify-center transition-all cursor-pointer disabled:opacity-50 group"
-        >
-          <span className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors">+250 ml</span>
-          <span className="text-[9px] uppercase tracking-wider text-slate-400 font-mono mt-0.5">Glass</span>
-        </button>
+      {/* Counter */}
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-3xl font-black text-white font-mono tracking-tight">{hydration.amountMl}</span>
+        <span className="text-xs text-slate-400 font-mono">/ {hydration.targetMl} ml</span>
+      </div>
 
-        <button
-          type="button"
-          disabled={isAdding}
-          onClick={() => handleAddWater(500)}
-          className="liquid-glass-subtle hover:bg-cyan-500/10 active:scale-95 border border-white/[0.06] hover:border-cyan-500/30 rounded-xl p-2.5 flex flex-col items-center justify-center transition-all cursor-pointer disabled:opacity-50 group"
-        >
-          <span className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors">+500 ml</span>
-          <span className="text-[9px] uppercase tracking-wider text-slate-400 font-mono mt-0.5">Bottle</span>
-        </button>
+      {/* Progress bar */}
+      <div className="m3-progress-track" style={{ height: "6px", borderRadius: "3px" }}>
+        <div
+          className="m3-progress-bar"
+          style={{ width: `${barWidth}%`, height: "6px", borderRadius: "3px", transition: "width 0.5s cubic-bezier(0.2,0,0,1)" }}
+        />
+      </div>
 
-        <button
-          type="button"
-          disabled={isAdding}
-          onClick={() => handleAddWater(750)}
-          className="liquid-glass-subtle hover:bg-cyan-500/10 active:scale-95 border border-white/[0.06] hover:border-cyan-500/30 rounded-xl p-2.5 flex flex-col items-center justify-center transition-all cursor-pointer disabled:opacity-50 group"
-        >
-          <span className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors">+750 ml</span>
-          <span className="text-[9px] uppercase tracking-wider text-slate-400 font-mono mt-0.5">Flask</span>
-        </button>
+      {/* Quick-add chips */}
+      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/[0.06]">
+        {QUICK_ADDS.map(({ ml, label }) => (
+          <button
+            key={ml}
+            type="button"
+            disabled={isAdding}
+            onClick={() => handleAdd(ml)}
+            className="m3-surface-inset hover:bg-cyan-500/10 hover:border-cyan-500/25 active:scale-95 rounded-xl py-2.5 flex flex-col items-center gap-0.5 transition-all cursor-pointer disabled:opacity-50 border border-white/[0.05]"
+          >
+            <span className="text-xs font-bold text-white">+{ml}ml</span>
+            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-mono">{label}</span>
+          </button>
+        ))}
       </div>
     </div>
   );

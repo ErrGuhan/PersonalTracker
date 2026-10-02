@@ -352,9 +352,14 @@ begin
 
 end $$;
 
--- ─── NON-DESTRUCTIVE MIGRATIONS (Health Intelligence) ────────
+-- ─── NON-DESTRUCTIVE MIGRATIONS (Health Intelligence & Workouts) ──
 alter table public.sleep_logs add column if not exists bedtime text;
 alter table public.sleep_logs add column if not exists wake_time text;
 alter table public.sleep_logs add column if not exists quality int;
 alter table public.sleep_logs add column if not exists rested_rating int;
 alter table public.sleep_logs add column if not exists notes text;
+
+alter table public.workouts add column if not exists calorie_source text default 'CALCULATED';
+alter table public.workouts add column if not exists intensity text default 'moderate';
+alter table public.workouts add column if not exists plan jsonb;
+
