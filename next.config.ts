@@ -18,7 +18,8 @@ const nextConfig: NextConfig = {
   // Applied to every response. Hardened against XSS, click-jacking, and
   // data injection. CSP allows Supabase + Google Fonts + necessary CDNs.
   async headers() {
-    const supabaseHost = SUPABASE_URL.replace(/^https?:\/\//, "");
+    const rawHost = SUPABASE_URL.replace(/^https?:\/\//, "").replace(/\/.*$/, "").trim();
+    const supabaseHost = rawHost || "*.supabase.co";
 
     return [
       {
